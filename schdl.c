@@ -10,6 +10,8 @@
 #define MAX_SCHEDULE_ITEMS 50
 #define SCROLL_SPEED 30.0f
 #define SCROLL_MARGIN 20.0f
+#define SCROLLBAR_WIDTH 12
+#define SCROLLBAR_MIN_HEIGHT 40
 
 // Add these color definitions at the top
 #define LIGHT_BLUE \
@@ -85,9 +87,49 @@ float get_content_height(void)
   return (scaled_item_height + (2 * scaled_padding)) * schedule.count;
 }
 
+Rectangle get_scrollbar_bounds(void)
+{
+  float scaled_header_height = HEADER_HEIGHT * scale_y;
+  return (Rectangle){
+      GetScreenWidth() - (SCROLLBAR_WIDTH * scale_x),
+      scaled_header_height,
+      SCROLLBAR_WIDTH * scale_x,
+      GetScreenHeight() - scaled_header_height};
+}
+
+Rectangle get_scrollbar_handle_bounds(void)
+{
+  Rectangle scrollbar = get_scrollbar_bounds();
+  float content_height = get_content_height();
+  float visible_height = GetScreenHeight() - (HEADER_HEIGHT * scale_y);
+
+  // Calculate handle height
+  float handle_height = (visible_height / content_height) * scrollbar.height;
+  if (handle_height < SCROLLBAR_MIN_HEIGHT * scale_y)
+    handle_height = SCROLLBAR_MIN_HEIGHT * scale_y;
+
+  // Calculate handle position
+  float max_scroll = content_height - visible_height;
+  float handle_position = 0;
+  if (max_scroll > 0)
+  {
+    handle_position = (scroll_offset / max_scroll) *
+                      (scrollbar.height - handle_height);
+  }
+
+  return (Rectangle){
+      scrollbar.x,
+      scrollbar.y + handle_position,
+      scrollbar.width,
+      handle_height};
+}
+
 void update_scroll(void)
 {
   float prev_scroll = scroll_offset;
+  static bool dragging_scrollbar = false;
+  static float drag_start_y = 0;
+  static float drag_start_scroll = 0;
 
   // Handle mouse wheel (invert for natural scrolling)
   float wheel = GetMouseWheelMove();
@@ -119,6 +161,51 @@ void update_scroll(void)
     scroll_offset = 0;
   if (scroll_offset > max_scroll)
     scroll_offset = max_scroll;
+
+  // Handle scrollbar interaction
+  Rectangle scrollbar = get_scrollbar_bounds();
+  Rectangle handle = get_scrollbar_handle_bounds();
+  Vector2 mouse = GetMousePosition();
+
+  // Check if mouse is over scrollbar
+  bool mouse_over_scrollbar = CheckCollisionPointRec(mouse, scrollbar);
+  bool mouse_over_handle = CheckCollisionPointRec(mouse, handle);
+
+  if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && mouse_over_handle)
+  {
+    dragging_scrollbar = true;
+    drag_start_y = mouse.y;
+    drag_start_scroll = scroll_offset;
+  }
+  else if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON))
+  {
+    dragging_scrollbar = false;
+  }
+
+  // Handle scrollbar dragging
+  if (dragging_scrollbar)
+  {
+    float drag_delta = mouse.y - drag_start_y;
+    float content_height = get_content_height();
+    float visible_height = GetScreenHeight() - (HEADER_HEIGHT * scale_y);
+    float scroll_range = content_height - visible_height;
+    float scrollbar_range = scrollbar.height - handle.height;
+
+    if (scrollbar_range > 0)
+    {
+      float scroll_delta = (drag_delta / scrollbar_range) * scroll_range;
+      scroll_offset = drag_start_scroll + scroll_delta;
+    }
+  }
+
+  // Handle clicking on scrollbar background
+  if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && mouse_over_scrollbar && !mouse_over_handle)
+  {
+    float click_pos = (mouse.y - scrollbar.y) / scrollbar.height;
+    float content_height = get_content_height();
+    float visible_height = GetScreenHeight() - (HEADER_HEIGHT * scale_y);
+    scroll_offset = (content_height - visible_height) * click_pos;
+  }
 
   // Debug output
   if (wheel != 0 || IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_DOWN))
@@ -246,21 +333,25 @@ void draw_schedule_items(void)
 
   EndScissorMode();
 
-  // Draw scroll indicators with better visibility
-  if (scroll_offset > 0)
+  // Draw scrollbar if needed
+  float content_height = get_content_height();
+  float visible_height = GetScreenHeight() - (HEADER_HEIGHT * scale_y);
+
+  if (content_height > visible_height)
   {
-    DrawRectangle(GetScreenWidth() / 2 - 20,
-                  scaled_header_height,
-                  40, 4,
-                  PURPLE);
+    Rectangle scrollbar = get_scrollbar_bounds();
+    Rectangle handle = get_scrollbar_handle_bounds();
+
+    // Draw scrollbar background
+    DrawRectangleRec(scrollbar, (Color){230, 230, 230, 255});
+
+    // Draw handle with hover effect
+    Color handleColor = PURPLE;
+    handleColor.a = CheckCollisionPointRec(GetMousePosition(), handle) ? 255 : 200;
+    DrawRectangleRounded(handle, 0.5f, 8, handleColor);
   }
-  if (scroll_offset < max_scroll)
-  {
-    DrawRectangle(GetScreenWidth() / 2 - 20,
-                  GetScreenHeight() - 4,
-                  40, 4,
-                  PURPLE);
-  }
+
+  // Remove the old scroll indicators
 }
 
 // Add this function before init_schdl
