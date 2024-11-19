@@ -1,6 +1,8 @@
 #include "raylib.h"
 #include <time.h>
 #include <stdio.h>
+#include <string.h>
+#include "layout.h"
 
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 900
@@ -10,7 +12,7 @@
 #define MAX_SCHEDULE_ITEMS 50
 #define SCROLL_SPEED 30.0f
 #define SCROLL_MARGIN 20.0f
-#define SCROLLBAR_WIDTH 12
+#define SCROLLBAR_WIDTH 18
 #define SCROLLBAR_MIN_HEIGHT 40
 
 // Add these color definitions at the top
@@ -91,9 +93,11 @@ Rectangle get_scrollbar_bounds(void)
 {
   float scaled_header_height = HEADER_HEIGHT * scale_y;
   return (Rectangle){
-      GetScreenWidth() - (SCROLLBAR_WIDTH * scale_x),
+      // GetScreenWidth() - (SCROLLBAR_WIDTH * scale_x),
+      GetScreenWidth() - SCROLLBAR_WIDTH,
       scaled_header_height,
-      SCROLLBAR_WIDTH * scale_x,
+      // SCROLLBAR_WIDTH * scale_x,
+      SCROLLBAR_WIDTH,
       GetScreenHeight() - scaled_header_height};
 }
 
@@ -224,78 +228,93 @@ void draw_schedule_items(void)
   update_scaling();
   update_scroll();
 
-  int scaled_header_height = HEADER_HEIGHT * scale_y;
-  int scaled_item_height = ITEM_HEIGHT * scale_y;
-  int scaled_padding = ITEM_PADDING * scale_y;
-  time_t now = time(NULL);
+  // Create main layout context
+  FlexContext main = FlexCreate(
+      (Rectangle){0, 0, GetScreenWidth(), GetScreenHeight()},
+      FLEX_DIRECTION_COLUMN);
+  FlexSetGap(&main, 0);
+  FlexSetPadding(&main, 0);
 
-  // Draw header (fixed position)
-  DrawText("Daily Schedule",
-           40 * scale_x,
-           20 * scale_y,
-           30 * scale_y,
-           BLACK);
-
-  char current_time[20];
-  struct tm *tm_now = localtime(&now);
-  sprintf(current_time, "Current Time: %02d:%02d", tm_now->tm_hour, tm_now->tm_min);
-  DrawText(current_time,
-           GetScreenWidth() - (300 * scale_x),
-           20 * scale_y,
-           30 * scale_y,
-           BLACK);
+  // Content area first
+  float content_height = GetScreenHeight() - (HEADER_HEIGHT * scale_y);
+  FlexContext content = FlexNested(&main,
+                                   (Vector2){GetScreenWidth(), content_height},
+                                   FLEX_DIRECTION_COLUMN);
 
   // Begin scissor mode for scrolling content
-  BeginScissorMode(0, scaled_header_height,
+  BeginScissorMode(0, HEADER_HEIGHT * scale_y,
                    GetScreenWidth(),
-                   GetScreenHeight() - scaled_header_height);
+                   GetScreenHeight() - HEADER_HEIGHT * scale_y);
 
+  // Draw schedule items
   for (int i = 0; i < schedule.count; i++)
   {
-    float y_pos = scaled_header_height +
-                  (i * (scaled_item_height + 2 * scaled_padding)) -
+    float y_pos = HEADER_HEIGHT * scale_y +
+                  (i * (ITEM_HEIGHT + 2 * ITEM_PADDING) * scale_y) -
                   scroll_offset;
 
     // Skip items that are outside the visible area
-    if (y_pos + scaled_item_height + (2 * scaled_padding) < scaled_header_height ||
+    if (y_pos + (ITEM_HEIGHT + 2 * ITEM_PADDING) * scale_y < HEADER_HEIGHT * scale_y ||
         y_pos > GetScreenHeight())
     {
       continue;
     }
 
-    ScheduleItem *item = &schedule.items[i];
+    // Create item layout
+    FlexContext item = FlexCreate(
+        (Rectangle){ITEM_PADDING * scale_x, y_pos,
+                    GetScreenWidth() - 2 * ITEM_PADDING * scale_x,
+                    ITEM_HEIGHT * scale_y},
+        FLEX_DIRECTION_COLUMN);
+    FlexSetPadding(&item, 20 * scale_x);
+
+    ScheduleItem *item_ptr = &schedule.items[i];
     Rectangle itemRect = {
-        scaled_padding,
-        y_pos + scaled_padding,
-        GetScreenWidth() - (2 * scaled_padding),
-        scaled_item_height};
+        item.bounds.x,
+        item.bounds.y,
+        item.bounds.width,
+        item.bounds.height};
 
     // Rest of the drawing code remains the same
     Color bgColor = (i % 2 == 0) ? LIGHT_BLUE : LIGHT_PURPLE;
     DrawRectangleRounded(itemRect, 0.1f, 8 * scale_y, bgColor);
 
-    if (now >= item->start_time && now <= item->end_time)
+    if (schedule.current_time >= item_ptr->start_time && schedule.current_time <= item_ptr->end_time)
     {
       DrawRectangleRoundedLines(itemRect, 0.1f, 8, PURPLE);
 
-      float completion = get_item_completion(item);
+      float completion = get_item_completion(item_ptr);
       Rectangle progressRect = itemRect;
       progressRect.width = (progressRect.width * completion) / 100.0f;
       DrawRectangleRounded(progressRect, 0.1f, 8 * scale_y,
                            (Color){PURPLE.r, PURPLE.g, PURPLE.b, 40});
 
-      // Draw "Current" tag
-      Rectangle tagRect = {
-          itemRect.x + itemRect.width - (120 * scale_x),
+      // Create a flex context for the tag
+      float text_size = 20 * scale_y;
+      float text_width = MeasureText("Current", text_size);
+      float vertical_padding = 8 * scale_y;
+      float horizontal_padding = 16 * scale_x;
+
+      // Calculate the total tag size
+      float tag_width = text_width + (2 * horizontal_padding);
+      float tag_height = text_size + (2 * vertical_padding);
+
+      // Position the tag in the top-right corner of the item
+      Rectangle tagBounds = {
+          itemRect.x + itemRect.width - (tag_width + 20 * scale_x),
           itemRect.y + (20 * scale_y),
-          100 * scale_x,
-          35 * scale_y};
-      DrawRectangleRounded(tagRect, 0.3f, 8 * scale_y, PURPLE);
-      DrawText("Current",
-               tagRect.x + (10 * scale_x),
-               tagRect.y + (8 * scale_y),
-               20 * scale_y,
-               WHITE);
+          tag_width,
+          tag_height};
+
+      // Draw the purple background first
+      DrawRectangleRounded(tagBounds, 0.3f, 8 * scale_y, PURPLE);
+
+      // Calculate exact center position for text
+      float text_x = tagBounds.x + (tagBounds.width - text_width) / 2;
+      float text_y = tagBounds.y + (tagBounds.height - text_size) / 2;
+
+      // Draw the text directly at the calculated center position
+      DrawText("Current", text_x, text_y, text_size, WHITE);
 
       // Draw completion percentage
       char percent[10];
@@ -308,7 +327,7 @@ void draw_schedule_items(void)
     }
 
     // Draw title
-    DrawText(item->title,
+    DrawText(item_ptr->title,
              itemRect.x + (20 * scale_x),
              itemRect.y + (20 * scale_y),
              30 * scale_y,
@@ -317,8 +336,8 @@ void draw_schedule_items(void)
     // Update time display using localtime_r
     char timeText[50];
     struct tm start_tm, end_tm;
-    localtime_r(&item->start_time, &start_tm);
-    localtime_r(&item->end_time, &end_tm);
+    localtime_r(&item_ptr->start_time, &start_tm);
+    localtime_r(&item_ptr->end_time, &end_tm);
 
     sprintf(timeText, "%02d:%02d - %02d:%02d",
             start_tm.tm_hour, start_tm.tm_min,
@@ -334,10 +353,10 @@ void draw_schedule_items(void)
   EndScissorMode();
 
   // Draw scrollbar if needed
-  float content_height = get_content_height();
+  float content_area_height = get_content_height();
   float visible_height = GetScreenHeight() - (HEADER_HEIGHT * scale_y);
 
-  if (content_height > visible_height)
+  if (content_area_height > visible_height)
   {
     Rectangle scrollbar = get_scrollbar_bounds();
     Rectangle handle = get_scrollbar_handle_bounds();
@@ -351,7 +370,46 @@ void draw_schedule_items(void)
     DrawRectangleRounded(handle, 0.5f, 8, handleColor);
   }
 
-  // Remove the old scroll indicators
+  // Header section - draw last so it's on top
+  FlexContext header = FlexCreate(
+      (Rectangle){0, 0, GetScreenWidth(), HEADER_HEIGHT * scale_y},
+      FLEX_DIRECTION_ROW);
+  FlexSetMainAlign(&header, ALIGN_SPACE_BETWEEN);
+  FlexSetCrossAlign(&header, ALIGN_CENTER);
+  FlexSetPadding(&header, 20 * scale_x);
+  FlexSetExpectedItems(&header, 2); // Tell the layout system we expect 3 items
+
+  // Draw header background
+  DrawRectangleRec(header.bounds, RAYWHITE);
+
+  // Draw title
+  Vector2 titleSize = {
+      MeasureText("Daily Schedule", 30 * scale_y),
+      30 * scale_y};
+  Rectangle titleRect = FlexNext(&header, titleSize);
+  DrawText("Daily Schedule", titleRect.x, titleRect.y, 30 * scale_y, BLACK);
+
+  // // Draw today's date
+  // char date_str[50];
+  time_t now = time(NULL);
+  struct tm *tm_now = localtime(&now);
+  // strftime(date_str, sizeof(date_str), "%B %d, %Y", tm_now);
+
+  // Vector2 dateSize = {
+  //     MeasureText(date_str, 30 * scale_y),
+  //     30 * scale_y};
+  // Rectangle dateRect = FlexNext(&header, dateSize);
+  // DrawText(date_str, dateRect.x, dateRect.y, 30 * scale_y, BLACK);
+
+  // Draw current time
+  char current_time[20];
+  sprintf(current_time, "Current Time: %02d:%02d", tm_now->tm_hour, tm_now->tm_min);
+
+  Vector2 timeSize = {
+      MeasureText(current_time, 30 * scale_y),
+      30 * scale_y};
+  Rectangle timeRect = FlexNext(&header, timeSize);
+  DrawText(current_time, timeRect.x, timeRect.y, 30 * scale_y, BLACK);
 }
 
 // Add this function before init_schdl
@@ -437,7 +495,8 @@ void init_schdl()
     ScheduleItem item = {
         .start_time = start,
         .end_time = end};
-    strcpy(item.title, title);
+    strncpy(item.title, title, sizeof(item.title) - 1);
+    item.title[sizeof(item.title) - 1] = '\0';
     schedule.items[schedule.count++] = item;
   }
 

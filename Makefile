@@ -4,6 +4,8 @@ RAYLIB_INCLUDE=-I$(RAYLIB_PATH)/src
 CFLAGS=-Wall -g
 RAYLIB_STATIC_FLAGS=-lraylib -lglfw -lGL -lm -lpthread -ldl -L./deps/raylib/src
 
+SRCS=schdl.c layout.c
+
 default: schdl
 
 # Add new install-deps target
@@ -21,11 +23,14 @@ install-deps:
 		echo "For Arch Linux: sudo pacman -S base-devel cmake glfw"; \
 	fi
 
-schdl: schdl.c
-	gcc -o schdl schdl.c $(CFLAGS) $(RAYLIB_STATIC_FLAGS) $(RAYLIB_INCLUDE)
+layout.o: layout.c layout.h
+	gcc -c layout.c $(CFLAGS) $(RAYLIB_INCLUDE)
+
+schdl: $(SRCS)
+	gcc -o schdl $(SRCS) $(CFLAGS) $(RAYLIB_STATIC_FLAGS) $(RAYLIB_INCLUDE)
 
 debug:
-	gcc -o schdl schdl.c $(CFLAGS) $(RAYLIB_STATIC_FLAGS) $(RAYLIB_INCLUDE) -g
+	gcc -o schdl $(SRCS) $(CFLAGS) $(RAYLIB_STATIC_FLAGS) $(RAYLIB_INCLUDE) -g
 
 debug-run: debug
 	gdb --batch --ex run --ex bt --ex q --args ./schdl
