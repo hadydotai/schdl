@@ -22,8 +22,6 @@
   (Color) { 235, 240, 255, 255 }
 #define LIGHT_PURPLE \
   (Color) { 245, 235, 255, 255 }
-#define PURPLE \
-  (Color) { 149, 82, 255, 255 }
 #define DARK_GRAY \
   (Color) { 85, 85, 85, 255 }
 
