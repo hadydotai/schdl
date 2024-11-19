@@ -35,6 +35,10 @@
 #define TAG_VERTICAL_PADDING (6)
 #define TAG_HORIZONTAL_PADDING (12)
 
+#define MIN_FONT_SCALE 0.5f
+#define MAX_FONT_SCALE 2.0f
+#define FONT_SCALE_STEP 0.1f
+
 static float scale_x = 1.0f;
 static float scale_y = 1.0f;
 static float scroll_offset = 0.0f;
@@ -44,6 +48,8 @@ static Font custom_font;
 #define FONT_SIZE_LARGE (24)
 #define FONT_SIZE_MEDIUM (20)
 #define FONT_SIZE_SMALL (16)
+
+static float font_scale = 1.0f;
 
 typedef struct
 {
@@ -225,7 +231,18 @@ void update_scroll(void)
 // Helper functions for text measurements and layout
 Vector2 get_text_dimensions(const char *text, float font_size)
 {
-  Vector2 size = MeasureTextEx(custom_font, text, font_size * scale_y, 0);
+  float scaled_size = font_size * scale_y * font_scale;
+  Vector2 size = MeasureTextEx(custom_font, text, scaled_size, 0);
+
+  // Debug output when measuring text
+  static float last_font_scale = 1.0f;
+  if (last_font_scale != font_scale)
+  {
+    printf("Measuring text '%s' with size: %.2f (base: %.2f, scale_y: %.2f, font_scale: %.2f)\n",
+           text, scaled_size, font_size, scale_y, font_scale);
+    last_font_scale = font_scale;
+  }
+
   return size;
 }
 
@@ -252,6 +269,27 @@ float get_text_vertical_center(Rectangle bounds, float font_size)
 {
   TextMetrics metrics = get_text_metrics(font_size);
   return bounds.y + (bounds.height - metrics.lineHeight) / 2 + metrics.ascent;
+}
+
+void update_font_size(void)
+{
+  bool ctrl_pressed = IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL);
+
+  if (ctrl_pressed)
+  {
+    // For German keyboard: + is on KEY_RIGHT_BRACKET (93)
+    if (IsKeyPressed(KEY_RIGHT_BRACKET))
+    {
+      font_scale = fminf(font_scale + FONT_SCALE_STEP, MAX_FONT_SCALE);
+      printf("Increasing font scale to: %.2f\n", font_scale);
+    }
+    // For German keyboard: - is on KEY_SLASH (47)
+    if (IsKeyPressed(KEY_SLASH))
+    {
+      font_scale = fmaxf(font_scale - FONT_SCALE_STEP, MIN_FONT_SCALE);
+      printf("Decreasing font scale to: %.2f\n", font_scale);
+    }
+  }
 }
 
 void draw_schedule_items(void)
@@ -347,7 +385,7 @@ void draw_schedule_items(void)
 
       DrawTextEx(custom_font, "Current",
                  (Vector2){text_x, text_y},
-                 tag_font_size * scale_y, 0, WHITE);
+                 tag_font_size * scale_y * font_scale, 0, WHITE);
 
       // Draw completion percentage under the tag
       char percent[10];
@@ -359,14 +397,14 @@ void draw_schedule_items(void)
 
       DrawTextEx(custom_font, percent,
                  (Vector2){percent_x, percent_y},
-                 FONT_SIZE_SMALL * scale_y, 0, DARK_GRAY);
+                 FONT_SIZE_SMALL * scale_y * font_scale, 0, DARK_GRAY);
     }
 
     // Draw title with proper vertical alignment
     float title_y = itemRect.y + (ITEM_VERTICAL_PADDING * scale_y);
     DrawTextEx(custom_font, item_ptr->title,
                (Vector2){itemRect.x + (ITEM_HORIZONTAL_PADDING * scale_x), title_y},
-               FONT_SIZE_LARGE * scale_y, 0, BLACK);
+               FONT_SIZE_LARGE * scale_y * font_scale, 0, BLACK);
 
     // Draw time with proper vertical alignment
     float time_y = itemRect.y + itemRect.height -
@@ -384,10 +422,13 @@ void draw_schedule_items(void)
 
     DrawTextEx(custom_font, timeText,
                (Vector2){itemRect.x + (ITEM_HORIZONTAL_PADDING * scale_x), time_y},
-               FONT_SIZE_MEDIUM * scale_y, 0, (Color){100, 100, 100, 255});
+               FONT_SIZE_MEDIUM * scale_y * font_scale, 0, (Color){100, 100, 100, 255});
   }
 
   EndScissorMode();
+
+  // Draw current time indicator
+  draw_current_time_indicator(HEADER_HEIGHT * scale_y);
 
   // Draw scrollbar if needed
   float content_area_height = get_content_height();
@@ -429,7 +470,7 @@ void draw_schedule_items(void)
 
   DrawTextEx(custom_font, "Daily Schedule",
              (Vector2){titleRect.x, header_text_y},
-             FONT_SIZE_LARGE * scale_y, 0, BLACK);
+             FONT_SIZE_LARGE * scale_y * font_scale, 0, BLACK);
 
   time_t now = time(NULL);
   struct tm tm_now;
@@ -446,7 +487,7 @@ void draw_schedule_items(void)
 
   DrawTextEx(custom_font, current_time,
              (Vector2){timeRect.x, time_header_y},
-             FONT_SIZE_MEDIUM * scale_y, 0, BLACK);
+             FONT_SIZE_MEDIUM * scale_y * font_scale, 0, BLACK);
 
   // Clean up at the end
   FlexEnd(&main);
@@ -558,6 +599,119 @@ void init_schdl()
   // }
 }
 
+// Add this function to draw the current time indicator
+void draw_current_time_indicator(float header_height)
+{
+  time_t now = time(NULL);
+
+  // Find the position where the current time should be displayed
+  float y_position = header_height;
+  bool found_position = false;
+
+  for (int i = 0; i < schedule.count; i++)
+  {
+    ScheduleItem *item = &schedule.items[i];
+
+    if (now < item->start_time)
+    {
+      // Current time is before this item
+      if (i > 0)
+      {
+        // Calculate position between previous and current item
+        ScheduleItem *prev = &schedule.items[i - 1];
+        float total_time = item->start_time - prev->end_time;
+        float elapsed = now - prev->end_time;
+        float progress = elapsed / total_time;
+
+        float prev_y = header_height + i * (ITEM_HEIGHT + ITEM_PADDING) * scale_y;
+        float next_y = header_height + (i + 1) * (ITEM_HEIGHT + ITEM_PADDING) * scale_y;
+        y_position = prev_y + progress * (ITEM_HEIGHT + ITEM_PADDING) * scale_y;
+      }
+      found_position = true;
+      break;
+    }
+    else if (now >= item->start_time && now <= item->end_time)
+    {
+      // Current time is within this item
+      float progress = (float)(now - item->start_time) / (item->end_time - item->start_time);
+      float item_y = header_height + i * (ITEM_HEIGHT + ITEM_PADDING) * scale_y;
+      y_position = item_y + progress * ITEM_HEIGHT * scale_y;
+      found_position = true;
+      break;
+    }
+    else if (i < schedule.count - 1 && now > item->end_time && now < schedule.items[i + 1].start_time)
+    {
+      // Current time is in gap between this item and next item
+      float gap_start = item->end_time;
+      float gap_end = schedule.items[i + 1].start_time;
+      float total_gap = gap_end - gap_start;
+      float elapsed = now - gap_start;
+      float progress = elapsed / total_gap;
+
+      float current_y = header_height + i * (ITEM_HEIGHT + ITEM_PADDING) * scale_y;
+      float next_y = current_y + (ITEM_HEIGHT + ITEM_PADDING) * scale_y;
+      y_position = current_y + ITEM_HEIGHT * scale_y + progress * ITEM_PADDING * scale_y;
+      found_position = true;
+      break;
+    }
+  }
+
+  if (!found_position && schedule.count > 0)
+  {
+    // If we're past the last item, position at the bottom
+    y_position = header_height + schedule.count * (ITEM_HEIGHT + ITEM_PADDING) * scale_y;
+  }
+
+  // Adjust for scroll
+  y_position -= scroll_offset;
+
+  // Only draw if the line would be visible
+  if (y_position >= header_height && y_position <= GetScreenHeight())
+  {
+    // Draw the time indicator line
+    float x = ITEM_HORIZONTAL_PADDING * scale_x;
+    float width = GetScreenWidth() - (2 * ITEM_HORIZONTAL_PADDING * scale_x);
+
+    // Draw a semi-transparent background line
+    DrawLineEx(
+        (Vector2){x, y_position},
+        (Vector2){x + width, y_position},
+        2 * scale_y,
+        (Color){PURPLE.r, PURPLE.g, PURPLE.b, 40});
+
+    // Draw the center dot
+    DrawCircle(x + width / 2, y_position, 4 * scale_y, PURPLE);
+
+    // Format current time
+    struct tm *tm_now = localtime(&now);
+    char time_text[6];
+    sprintf(time_text, "%02d:%02d", tm_now->tm_hour, tm_now->tm_min);
+
+    // Calculate text position
+    Vector2 time_size = get_text_dimensions(time_text, FONT_SIZE_SMALL);
+    float text_x = x + width - time_size.x - (8 * scale_x);
+    float text_y = y_position - time_size.y - (4 * scale_y);
+
+    // Draw time text with background
+    float padding = 4 * scale_x;
+    DrawRectangleRounded(
+        (Rectangle){
+            text_x - padding,
+            text_y - padding,
+            time_size.x + (2 * padding),
+            time_size.y + (2 * padding)},
+        0.3f,
+        8 * scale_y,
+        PURPLE);
+
+    DrawTextEx(custom_font, time_text,
+               (Vector2){text_x, text_y},
+               FONT_SIZE_SMALL * scale_y * font_scale,
+               0,
+               WHITE);
+  }
+}
+
 int main()
 {
   SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_WINDOW_RESIZABLE);
@@ -569,6 +723,8 @@ int main()
 
   while (!WindowShouldClose())
   {
+    update_font_size();
+
     BeginDrawing();
     ClearBackground(RAYWHITE);
 
@@ -579,6 +735,7 @@ int main()
       SetWindowSize(GetScreenWidth(), 500);
 
     draw_schedule_items();
+    draw_current_time_indicator(HEADER_HEIGHT * scale_y);
     EndDrawing();
   }
 
