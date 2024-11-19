@@ -15,7 +15,6 @@
 #define SCROLL_MARGIN 20.0f
 #define SCROLLBAR_WIDTH 18
 #define SCROLLBAR_MIN_HEIGHT 40
-#define TAG_HEIGHT (32) // Fixed height for the "Current" tag
 #define HEADER_PADDING_HORIZONTAL (24)
 #define HEADER_PADDING_VERTICAL (12)
 
@@ -325,11 +324,13 @@ void draw_schedule_items(void)
       DrawRectangleRounded(progressRect, 0.1f, 8 * scale_y,
                            (Color){PURPLE.r, PURPLE.g, PURPLE.b, 40});
 
-      // Calculate tag dimensions
+      // Calculate tag dimensions based on text size
       float tag_font_size = FONT_SIZE_SMALL;
       Vector2 tag_text_size = get_text_dimensions("Current", tag_font_size);
+
+      // Calculate tag height based on text height plus padding
       float tag_width = tag_text_size.x + (2 * TAG_HORIZONTAL_PADDING * scale_x);
-      float tag_height = TAG_HEIGHT * scale_y; // Use fixed height
+      float tag_height = tag_text_size.y + (2 * TAG_VERTICAL_PADDING * scale_y);
 
       // Position the tag in the top-right corner with proper padding
       Rectangle tagBounds = {
@@ -355,7 +356,7 @@ void draw_schedule_items(void)
       Vector2 percent_size = get_text_dimensions(percent, FONT_SIZE_SMALL);
 
       float percent_x = tagBounds.x + (tagBounds.width - percent_size.x) / 2;
-      float percent_y = tagBounds.y + tagBounds.height + (4 * scale_y); // Small gap after tag
+      float percent_y = tagBounds.y + tagBounds.height + (4 * scale_y);
 
       DrawTextEx(custom_font, percent,
                  (Vector2){percent_x, percent_y},
