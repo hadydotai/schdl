@@ -292,6 +292,7 @@ void update_font_size(void)
   }
 }
 
+void draw_current_time_indicator(float header_height);
 void draw_schedule_items(void)
 {
   update_scaling();
@@ -560,8 +561,8 @@ void init_schdl()
       .end_time = end};
   schedule.items[schedule.count++] = work2;
 
-  // Dinner: 19:30 - 20:30
-  start = make_time(19, 30);
+  // Dinner: 18:00 - 20:30
+  start = make_time(18, 0);
   end = make_time(20, 30);
   ScheduleItem dinner = {
       .title = "Dinner",
@@ -624,7 +625,6 @@ void draw_current_time_indicator(float header_height)
         float progress = elapsed / total_time;
 
         float prev_y = header_height + i * (ITEM_HEIGHT + ITEM_PADDING) * scale_y;
-        float next_y = header_height + (i + 1) * (ITEM_HEIGHT + ITEM_PADDING) * scale_y;
         y_position = prev_y + progress * (ITEM_HEIGHT + ITEM_PADDING) * scale_y;
       }
       found_position = true;
@@ -649,7 +649,6 @@ void draw_current_time_indicator(float header_height)
       float progress = elapsed / total_gap;
 
       float current_y = header_height + i * (ITEM_HEIGHT + ITEM_PADDING) * scale_y;
-      float next_y = current_y + (ITEM_HEIGHT + ITEM_PADDING) * scale_y;
       y_position = current_y + ITEM_HEIGHT * scale_y + progress * ITEM_PADDING * scale_y;
       found_position = true;
       break;
