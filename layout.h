@@ -26,6 +26,12 @@ typedef struct
   float gap;
   float padding;
   int expected_items;
+
+  // New fields to track state
+  float current_pos;
+  Vector2 *item_sizes;
+  int item_count;
+  int max_items;
 } FlexContext;
 
 // Initialize a new flex context
@@ -43,5 +49,9 @@ Rectangle FlexNext(FlexContext *ctx, Vector2 size);
 
 // Create a nested flex context
 FlexContext FlexNested(FlexContext *parent, Vector2 size, FlexDirection direction);
+
+// Add new function declarations
+void FlexStart(FlexContext *ctx);
+void FlexEnd(FlexContext *ctx);
 
 #endif // LAYOUT_H

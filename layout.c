@@ -10,7 +10,11 @@ FlexContext FlexCreate(Rectangle bounds, FlexDirection direction)
       .crossAlign = ALIGN_START,
       .gap = 0,
       .padding = 0,
-      .expected_items = 1};
+      .expected_items = 1,
+      .current_pos = 0,
+      .item_sizes = NULL,
+      .item_count = 0,
+      .max_items = 0};
   return ctx;
 }
 
@@ -53,33 +57,38 @@ static float get_cross_position(FlexContext *ctx, float itemSize, float containe
   }
 }
 
-Rectangle FlexNext(FlexContext *ctx, Vector2 size)
+void FlexStart(FlexContext *ctx)
 {
-  // Static tracking per context
-  static FlexContext *last_ctx = NULL;
-  static float current_pos = 0;
-  static Vector2 *item_sizes = NULL;
-  static int item_count = 0;
-  static int max_items = 0;
+  // Initialize the context state
+  ctx->current_pos = ctx->padding;
+  ctx->item_count = 0;
 
-  // Reset tracking when context changes
-  if (last_ctx != ctx)
+  // Allocate or reallocate item_sizes if needed
+  if (ctx->item_sizes)
   {
-    // Start position should include padding
-    current_pos = ctx->padding;
-    item_count = 0;
-
-    // Free previous array
-    if (item_sizes)
-      free(item_sizes);
-
-    max_items = ctx->expected_items;
-    item_sizes = malloc(sizeof(Vector2) * max_items);
-    last_ctx = ctx;
+    free(ctx->item_sizes);
   }
 
+  ctx->max_items = ctx->expected_items;
+  ctx->item_sizes = malloc(sizeof(Vector2) * ctx->max_items);
+}
+
+void FlexEnd(FlexContext *ctx)
+{
+  // Clean up resources
+  if (ctx->item_sizes)
+  {
+    free(ctx->item_sizes);
+    ctx->item_sizes = NULL;
+  }
+  ctx->item_count = 0;
+  ctx->max_items = 0;
+}
+
+Rectangle FlexNext(FlexContext *ctx, Vector2 size)
+{
   // Store current item size
-  item_sizes[item_count] = size;
+  ctx->item_sizes[ctx->item_count] = size;
 
   float x = ctx->bounds.x;
   float y = ctx->bounds.y;
@@ -91,9 +100,9 @@ Rectangle FlexNext(FlexContext *ctx, Vector2 size)
       // Account for padding in available space calculation
       float available_space = ctx->bounds.width - (2 * ctx->padding);
       float total_content_width = size.x;
-      for (int i = 0; i < item_count; i++)
+      for (int i = 0; i < ctx->item_count; i++)
       {
-        total_content_width += item_sizes[i].x;
+        total_content_width += ctx->item_sizes[i].x;
       }
 
       float remaining_space = available_space - total_content_width;
@@ -101,9 +110,9 @@ Rectangle FlexNext(FlexContext *ctx, Vector2 size)
 
       // Start with padding
       x = ctx->bounds.x + ctx->padding;
-      for (int i = 0; i < item_count; i++)
+      for (int i = 0; i < ctx->item_count; i++)
       {
-        x += item_sizes[i].x + spacing;
+        x += ctx->item_sizes[i].x + spacing;
       }
 
       // Apply cross alignment with padding
@@ -115,9 +124,9 @@ Rectangle FlexNext(FlexContext *ctx, Vector2 size)
       // Similar logic for vertical layout
       float available_space = ctx->bounds.height - (2 * ctx->padding);
       float total_height = size.y;
-      for (int i = 0; i < item_count; i++)
+      for (int i = 0; i < ctx->item_count; i++)
       {
-        total_height += item_sizes[i].y;
+        total_height += ctx->item_sizes[i].y;
       }
 
       float remaining_space = available_space - total_height;
@@ -129,9 +138,9 @@ Rectangle FlexNext(FlexContext *ctx, Vector2 size)
 
       // Start with padding and apply spacing
       y = ctx->bounds.y + ctx->padding;
-      for (int i = 0; i < item_count; i++)
+      for (int i = 0; i < ctx->item_count; i++)
       {
-        y += item_sizes[i].y + spacing;
+        y += ctx->item_sizes[i].y + spacing;
       }
     }
   }
@@ -141,14 +150,14 @@ Rectangle FlexNext(FlexContext *ctx, Vector2 size)
     if (ctx->direction == FLEX_DIRECTION_ROW)
     {
       // Apply current position (includes padding and gaps)
-      x += current_pos;
+      x += ctx->current_pos;
 
       // Apply cross alignment with padding
       y += ctx->padding + get_cross_position(ctx, size.y,
                                              ctx->bounds.height - 2 * ctx->padding);
 
       // Update position including gap for next item
-      current_pos += size.x + ctx->gap;
+      ctx->current_pos += size.x + ctx->gap;
     }
     else
     {
@@ -157,14 +166,14 @@ Rectangle FlexNext(FlexContext *ctx, Vector2 size)
                                              ctx->bounds.width - 2 * ctx->padding);
 
       // Apply current position (includes padding and gaps)
-      y += current_pos;
+      y += ctx->current_pos;
 
       // Update position including gap for next item
-      current_pos += size.y + ctx->gap;
+      ctx->current_pos += size.y + ctx->gap;
     }
   }
 
-  item_count++;
+  ctx->item_count++;
   return (Rectangle){x, y, size.x, size.y};
 }
 

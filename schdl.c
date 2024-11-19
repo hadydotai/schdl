@@ -265,6 +265,7 @@ void draw_schedule_items(void)
       FLEX_DIRECTION_COLUMN);
   FlexSetGap(&main, 0);
   FlexSetPadding(&main, 0);
+  FlexStart(&main);
 
   // Content area first
   float content_height = GetScreenHeight() - (HEADER_HEIGHT * scale_y);
@@ -414,6 +415,7 @@ void draw_schedule_items(void)
   FlexSetCrossAlign(&header, ALIGN_CENTER);
   FlexSetPadding(&header, HEADER_PADDING_HORIZONTAL * scale_x); // Use new padding constant
   FlexSetExpectedItems(&header, 2);
+  FlexStart(&header);
 
   // Draw header background
   DrawRectangleRec(header.bounds, RAYWHITE);
@@ -445,6 +447,10 @@ void draw_schedule_items(void)
   DrawTextEx(custom_font, current_time,
              (Vector2){timeRect.x, time_header_y},
              FONT_SIZE_MEDIUM * scale_y, 0, BLACK);
+
+  // Clean up at the end
+  FlexEnd(&main);
+  FlexEnd(&header);
 }
 
 // Add this function before init_schdl
