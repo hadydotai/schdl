@@ -131,24 +131,24 @@ void update_scroll(void)
   static float drag_start_y = 0;
   static float drag_start_scroll = 0;
 
-  // Handle mouse wheel (invert for natural scrolling)
+  // Handle mouse wheel (natural scrolling)
   float wheel = GetMouseWheelMove();
   if (wheel != 0)
   {
     printf("Mouse wheel: %f\n", wheel);
-    scroll_offset += wheel * SCROLL_SPEED * scale_y; // Changed minus to plus
+    scroll_offset -= wheel * SCROLL_SPEED * scale_y; // Changed plus to minus for natural scrolling
   }
 
-  // Support keyboard up/down arrows
+  // Support keyboard up/down arrows (natural direction)
   if (IsKeyPressed(KEY_UP))
   {
     printf("Up pressed\n");
-    scroll_offset -= ITEM_HEIGHT * scale_y;
+    scroll_offset -= ITEM_HEIGHT * scale_y; // Move content up
   }
   if (IsKeyPressed(KEY_DOWN))
   {
     printf("Down pressed\n");
-    scroll_offset += ITEM_HEIGHT * scale_y;
+    scroll_offset += ITEM_HEIGHT * scale_y; // Move content down
   }
 
   // Calculate max scroll based on content height
