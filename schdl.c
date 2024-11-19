@@ -2,6 +2,7 @@
 #include <time.h>
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 #include "layout.h"
 
 #define WINDOW_WIDTH 800
@@ -15,7 +16,6 @@
 #define SCROLLBAR_WIDTH 18
 #define SCROLLBAR_MIN_HEIGHT 40
 
-// Add these color definitions at the top
 #define LIGHT_BLUE \
   (Color) { 235, 240, 255, 255 }
 #define LIGHT_PURPLE \
@@ -25,15 +25,18 @@
 #define DARK_GRAY \
   (Color) { 85, 85, 85, 255 }
 
-// Add these new definitions after the existing #defines
 #define BASE_WIDTH 800
 #define BASE_HEIGHT 900
 
-// Add these global variables to track current window dimensions
 static float scale_x = 1.0f;
 static float scale_y = 1.0f;
 static float scroll_offset = 0.0f;
 static float max_scroll = 0.0f;
+static Font custom_font;
+
+#define FONT_SIZE_LARGE (30)
+#define FONT_SIZE_MEDIUM (25)
+#define FONT_SIZE_SMALL (20)
 
 typedef struct
 {
@@ -65,14 +68,12 @@ float get_item_completion(ScheduleItem *item)
   return (elapsed / duration) * 100.0f;
 }
 
-// Add this function to update scaling factors
 void update_scaling(void)
 {
   scale_x = (float)GetScreenWidth() / BASE_WIDTH;
   scale_y = (float)GetScreenHeight() / BASE_HEIGHT;
 }
 
-// Add this helper function to scale rectangles
 Rectangle scale_rect(Rectangle rect)
 {
   return (Rectangle){
@@ -93,10 +94,8 @@ Rectangle get_scrollbar_bounds(void)
 {
   float scaled_header_height = HEADER_HEIGHT * scale_y;
   return (Rectangle){
-      // GetScreenWidth() - (SCROLLBAR_WIDTH * scale_x),
       GetScreenWidth() - SCROLLBAR_WIDTH,
       scaled_header_height,
-      // SCROLLBAR_WIDTH * scale_x,
       SCROLLBAR_WIDTH,
       GetScreenHeight() - scaled_header_height};
 }
@@ -107,12 +106,10 @@ Rectangle get_scrollbar_handle_bounds(void)
   float content_height = get_content_height();
   float visible_height = GetScreenHeight() - (HEADER_HEIGHT * scale_y);
 
-  // Calculate handle height
   float handle_height = (visible_height / content_height) * scrollbar.height;
   if (handle_height < SCROLLBAR_MIN_HEIGHT * scale_y)
     handle_height = SCROLLBAR_MIN_HEIGHT * scale_y;
 
-  // Calculate handle position
   float max_scroll = content_height - visible_height;
   float handle_position = 0;
   if (max_scroll > 0)
@@ -130,28 +127,23 @@ Rectangle get_scrollbar_handle_bounds(void)
 
 void update_scroll(void)
 {
-  float prev_scroll = scroll_offset;
   static bool dragging_scrollbar = false;
   static float drag_start_y = 0;
   static float drag_start_scroll = 0;
 
-  // Handle mouse wheel (natural scrolling)
   float wheel = GetMouseWheelMove();
   if (wheel != 0)
   {
-    printf("Mouse wheel: %f\n", wheel);
     scroll_offset -= wheel * SCROLL_SPEED * scale_y; // Changed plus to minus for natural scrolling
   }
 
   // Support keyboard up/down arrows (natural direction)
   if (IsKeyPressed(KEY_UP))
   {
-    printf("Up pressed\n");
     scroll_offset -= ITEM_HEIGHT * scale_y; // Move content up
   }
   if (IsKeyPressed(KEY_DOWN))
   {
-    printf("Down pressed\n");
     scroll_offset += ITEM_HEIGHT * scale_y; // Move content down
   }
 
@@ -211,16 +203,16 @@ void update_scroll(void)
     scroll_offset = (content_height - visible_height) * click_pos;
   }
 
-  // Debug output
-  if (wheel != 0 || IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_DOWN))
-  {
-    printf("Previous scroll: %f\n", prev_scroll);
-    printf("New scroll: %f\n", scroll_offset);
-    printf("Content height: %f\n", content_height);
-    printf("Visible height: %f\n", visible_height);
-    printf("Max scroll: %f\n", max_scroll);
-    printf("-------------------\n");
-  }
+  // // Debug output
+  // if (wheel != 0 || IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_DOWN))
+  // {
+  //   printf("Previous scroll: %f\n", prev_scroll);
+  //   printf("New scroll: %f\n", scroll_offset);
+  //   printf("Content height: %f\n", content_height);
+  //   printf("Visible height: %f\n", visible_height);
+  //   printf("Max scroll: %f\n", max_scroll);
+  //   printf("-------------------\n");
+  // }
 }
 
 void draw_schedule_items(void)
@@ -237,9 +229,9 @@ void draw_schedule_items(void)
 
   // Content area first
   float content_height = GetScreenHeight() - (HEADER_HEIGHT * scale_y);
-  FlexContext content = FlexNested(&main,
-                                   (Vector2){GetScreenWidth(), content_height},
-                                   FLEX_DIRECTION_COLUMN);
+  FlexNested(&main,
+             (Vector2){GetScreenWidth(), content_height},
+             FLEX_DIRECTION_COLUMN);
 
   // Begin scissor mode for scrolling content
   BeginScissorMode(0, HEADER_HEIGHT * scale_y,
@@ -314,24 +306,22 @@ void draw_schedule_items(void)
       float text_y = tagBounds.y + (tagBounds.height - text_size) / 2;
 
       // Draw the text directly at the calculated center position
-      DrawText("Current", text_x, text_y, text_size, WHITE);
+      DrawTextEx(custom_font, "Current",
+                 (Vector2){text_x, text_y},
+                 text_size, 0, WHITE);
 
       // Draw completion percentage
       char percent[10];
       sprintf(percent, "%.1f%%", completion);
-      DrawText(percent,
-               itemRect.x + itemRect.width - (120 * scale_x),
-               itemRect.y + itemRect.height - (40 * scale_y),
-               20 * scale_y,
-               DARK_GRAY);
+      DrawTextEx(custom_font, percent,
+                 (Vector2){itemRect.x + itemRect.width - (120 * scale_x), itemRect.y + itemRect.height - (40 * scale_y)},
+                 FONT_SIZE_SMALL * scale_y, 0, DARK_GRAY);
     }
 
     // Draw title
-    DrawText(item_ptr->title,
-             itemRect.x + (20 * scale_x),
-             itemRect.y + (20 * scale_y),
-             30 * scale_y,
-             BLACK);
+    DrawTextEx(custom_font, item_ptr->title,
+               (Vector2){itemRect.x + (20 * scale_x), itemRect.y + (20 * scale_y)},
+               FONT_SIZE_LARGE * scale_y, 0, BLACK);
 
     // Update time display using localtime_r
     char timeText[50];
@@ -343,11 +333,9 @@ void draw_schedule_items(void)
             start_tm.tm_hour, start_tm.tm_min,
             end_tm.tm_hour, end_tm.tm_min);
 
-    DrawText(timeText,
-             itemRect.x + (20 * scale_x),
-             itemRect.y + itemRect.height - (40 * scale_y),
-             25 * scale_y,
-             (Color){100, 100, 100, 255});
+    DrawTextEx(custom_font, timeText,
+               (Vector2){itemRect.x + (20 * scale_x), itemRect.y + itemRect.height - (40 * scale_y)},
+               FONT_SIZE_MEDIUM * scale_y, 0, (Color){100, 100, 100, 255});
   }
 
   EndScissorMode();
@@ -377,17 +365,17 @@ void draw_schedule_items(void)
   FlexSetMainAlign(&header, ALIGN_SPACE_BETWEEN);
   FlexSetCrossAlign(&header, ALIGN_CENTER);
   FlexSetPadding(&header, 20 * scale_x);
-  FlexSetExpectedItems(&header, 2); // Tell the layout system we expect 3 items
+  FlexSetExpectedItems(&header, 2);
 
   // Draw header background
   DrawRectangleRec(header.bounds, RAYWHITE);
 
   // Draw title
-  Vector2 titleSize = {
-      MeasureText("Daily Schedule", 30 * scale_y),
-      30 * scale_y};
+  Vector2 titleSize = MeasureTextEx(custom_font, "Daily Schedule", FONT_SIZE_LARGE * scale_y, 0);
   Rectangle titleRect = FlexNext(&header, titleSize);
-  DrawText("Daily Schedule", titleRect.x, titleRect.y, 30 * scale_y, BLACK);
+  DrawTextEx(custom_font, "Daily Schedule",
+             (Vector2){titleRect.x, titleRect.y},
+             FONT_SIZE_LARGE * scale_y, 0, BLACK);
 
   // // Draw today's date
   // char date_str[50];
@@ -409,7 +397,9 @@ void draw_schedule_items(void)
       MeasureText(current_time, 30 * scale_y),
       30 * scale_y};
   Rectangle timeRect = FlexNext(&header, timeSize);
-  DrawText(current_time, timeRect.x, timeRect.y, 30 * scale_y, BLACK);
+  DrawTextEx(custom_font, current_time,
+             (Vector2){timeRect.x, timeRect.y},
+             FONT_SIZE_MEDIUM * scale_y, 0, BLACK);
 }
 
 // Add this function before init_schdl
@@ -428,14 +418,14 @@ time_t make_time(int hour, int min)
   // Convert to time_t
   time_t result = mktime(&today);
 
-  printf("Setting time to %02d:%02d\n", hour, min); // Debug print
-
   return result;
 }
 
 void init_schdl()
 {
-  // SetWindowState(FLAG_WINDOW_RESIZABLE);
+  // Load the custom font first
+  custom_font = LoadFontEx("fonts/Roboto-Regular.ttf", 96, NULL, 0);
+  SetTextureFilter(custom_font.texture, TEXTURE_FILTER_BILINEAR); // For smoother text
 
   schedule.count = 0;
   schedule.current_time = time(NULL);
@@ -500,19 +490,19 @@ void init_schdl()
     schedule.items[schedule.count++] = item;
   }
 
-  // Debug print to verify times
-  for (int i = 0; i < schedule.count; i++)
-  {
-    struct tm start_tm, end_tm;
-    localtime_r(&schedule.items[i].start_time, &start_tm);
-    localtime_r(&schedule.items[i].end_time, &end_tm);
+  // // Debug print to verify times
+  // for (int i = 0; i < schedule.count; i++)
+  // {
+  //   struct tm start_tm, end_tm;
+  //   localtime_r(&schedule.items[i].start_time, &start_tm);
+  //   localtime_r(&schedule.items[i].end_time, &end_tm);
 
-    printf("Item %d (%s): %02d:%02d - %02d:%02d\n",
-           i,
-           schedule.items[i].title,
-           start_tm.tm_hour, start_tm.tm_min,
-           end_tm.tm_hour, end_tm.tm_min);
-  }
+  //   printf("Item %d (%s): %02d:%02d - %02d:%02d\n",
+  //          i,
+  //          schedule.items[i].title,
+  //          start_tm.tm_hour, start_tm.tm_min,
+  //          end_tm.tm_hour, end_tm.tm_min);
+  // }
 }
 
 int main()
@@ -539,6 +529,7 @@ int main()
     EndDrawing();
   }
 
+  UnloadFont(custom_font);
   CloseWindow();
   return 0;
 }

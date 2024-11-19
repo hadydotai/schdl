@@ -65,7 +65,7 @@ Rectangle FlexNext(FlexContext *ctx, Vector2 size)
   // Reset tracking when context changes
   if (last_ctx != ctx)
   {
-    printf("\n--- New Layout Context ---\n");
+    // Start position should include padding
     current_pos = ctx->padding;
     item_count = 0;
 
@@ -84,12 +84,11 @@ Rectangle FlexNext(FlexContext *ctx, Vector2 size)
   float x = ctx->bounds.x;
   float y = ctx->bounds.y;
 
-  printf("Item %d: size = %.1f x %.1f\n", item_count, size.x, size.y);
-
   if (ctx->mainAlign == ALIGN_SPACE_BETWEEN)
   {
     if (ctx->direction == FLEX_DIRECTION_ROW)
     {
+      // Account for padding in available space calculation
       float available_space = ctx->bounds.width - (2 * ctx->padding);
       float total_content_width = size.x;
       for (int i = 0; i < item_count; i++)
@@ -100,19 +99,16 @@ Rectangle FlexNext(FlexContext *ctx, Vector2 size)
       float remaining_space = available_space - total_content_width;
       float spacing = remaining_space / (ctx->expected_items - 1);
 
+      // Start with padding
       x = ctx->bounds.x + ctx->padding;
       for (int i = 0; i < item_count; i++)
       {
         x += item_sizes[i].x + spacing;
       }
 
+      // Apply cross alignment with padding
       y = ctx->bounds.y + ctx->padding +
           get_cross_position(ctx, size.y, ctx->bounds.height - 2 * ctx->padding);
-
-      printf("Total content width: %.1f\n", total_content_width);
-      printf("Available space: %.1f\n", available_space);
-      printf("Spacing: %.1f\n", spacing);
-      printf("Final position: (%.1f, %.1f)\n", x, y);
     }
     else
     {
@@ -127,23 +123,15 @@ Rectangle FlexNext(FlexContext *ctx, Vector2 size)
       float remaining_space = available_space - total_height;
       float spacing = remaining_space / (ctx->expected_items - 1);
 
+      // Apply cross alignment with padding
       x = ctx->bounds.x + ctx->padding +
           get_cross_position(ctx, size.x, ctx->bounds.width - 2 * ctx->padding);
 
-      if (item_count == 0)
+      // Start with padding and apply spacing
+      y = ctx->bounds.y + ctx->padding;
+      for (int i = 0; i < item_count; i++)
       {
-        y = ctx->bounds.y + ctx->padding;
-      }
-      else if (item_count == 1)
-      {
-        y = ctx->bounds.y + ctx->padding +
-            item_sizes[0].y + spacing;
-      }
-      else
-      {
-        y = ctx->bounds.y + ctx->padding +
-            item_sizes[0].y + spacing +
-            item_sizes[1].y + spacing;
+        y += item_sizes[i].y + spacing;
       }
     }
   }
@@ -152,16 +140,26 @@ Rectangle FlexNext(FlexContext *ctx, Vector2 size)
     // Normal positioning for other alignment modes
     if (ctx->direction == FLEX_DIRECTION_ROW)
     {
+      // Apply current position (includes padding and gaps)
       x += current_pos;
+
+      // Apply cross alignment with padding
       y += ctx->padding + get_cross_position(ctx, size.y,
                                              ctx->bounds.height - 2 * ctx->padding);
+
+      // Update position including gap for next item
       current_pos += size.x + ctx->gap;
     }
     else
     {
+      // Apply cross alignment with padding
       x += ctx->padding + get_cross_position(ctx, size.x,
                                              ctx->bounds.width - 2 * ctx->padding);
+
+      // Apply current position (includes padding and gaps)
       y += current_pos;
+
+      // Update position including gap for next item
       current_pos += size.y + ctx->gap;
     }
   }
