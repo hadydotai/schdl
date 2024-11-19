@@ -377,9 +377,7 @@ time_t make_time(int hour, int min)
 
 void init_schdl()
 {
-  InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Daily Schedule");
-  SetTargetFPS(60);
-  SetWindowState(FLAG_WINDOW_RESIZABLE);
+  // SetWindowState(FLAG_WINDOW_RESIZABLE);
 
   schedule.count = 0;
   schedule.current_time = time(NULL);
@@ -462,6 +460,9 @@ int main()
 {
   SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_WINDOW_RESIZABLE);
   SetTraceLogLevel(LOG_WARNING); // Change to see more debug info
+  InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Daily Schedule");
+  SetTargetFPS(60);
+
   init_schdl();
 
   while (!WindowShouldClose())
