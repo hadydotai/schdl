@@ -7,14 +7,17 @@
 
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 900
-#define ITEM_HEIGHT 120
-#define ITEM_PADDING 20
-#define HEADER_HEIGHT 80
+#define ITEM_HEIGHT 100
+#define ITEM_PADDING 10
+#define HEADER_HEIGHT 60
 #define MAX_SCHEDULE_ITEMS 50
 #define SCROLL_SPEED 30.0f
 #define SCROLL_MARGIN 20.0f
 #define SCROLLBAR_WIDTH 18
 #define SCROLLBAR_MIN_HEIGHT 40
+#define TAG_HEIGHT (32) // Fixed height for the "Current" tag
+#define HEADER_PADDING_HORIZONTAL (24)
+#define HEADER_PADDING_VERTICAL (12)
 
 #define LIGHT_BLUE \
   (Color) { 235, 240, 255, 255 }
@@ -28,15 +31,22 @@
 #define BASE_WIDTH 800
 #define BASE_HEIGHT 900
 
+#define BASE_PADDING (16)
+#define BASE_GAP (8)
+#define ITEM_VERTICAL_PADDING (16)
+#define ITEM_HORIZONTAL_PADDING (16)
+#define TAG_VERTICAL_PADDING (6)
+#define TAG_HORIZONTAL_PADDING (12)
+
 static float scale_x = 1.0f;
 static float scale_y = 1.0f;
 static float scroll_offset = 0.0f;
 static float max_scroll = 0.0f;
 static Font custom_font;
 
-#define FONT_SIZE_LARGE (30)
-#define FONT_SIZE_MEDIUM (25)
-#define FONT_SIZE_SMALL (20)
+#define FONT_SIZE_LARGE (24)
+#define FONT_SIZE_MEDIUM (20)
+#define FONT_SIZE_SMALL (16)
 
 typedef struct
 {
@@ -215,6 +225,38 @@ void update_scroll(void)
   // }
 }
 
+// Helper functions for text measurements and layout
+Vector2 get_text_dimensions(const char *text, float font_size)
+{
+  Vector2 size = MeasureTextEx(custom_font, text, font_size * scale_y, 0);
+  return size;
+}
+
+// Get vertical metrics for text layout
+typedef struct
+{
+  float ascent;
+  float descent;
+  float lineHeight;
+} TextMetrics;
+
+TextMetrics get_text_metrics(float font_size)
+{
+  float scaled_size = font_size * scale_y;
+  TextMetrics metrics = {
+      .ascent = scaled_size * 0.8f, // Approximate metrics based on font size
+      .descent = scaled_size * 0.2f,
+      .lineHeight = scaled_size * 1.2f};
+  return metrics;
+}
+
+// Helper to center text vertically in a rectangle
+float get_text_vertical_center(Rectangle bounds, float font_size)
+{
+  TextMetrics metrics = get_text_metrics(font_size);
+  return bounds.y + (bounds.height - metrics.lineHeight) / 2 + metrics.ascent;
+}
+
 void draw_schedule_items(void)
 {
   update_scaling();
@@ -242,23 +284,25 @@ void draw_schedule_items(void)
   for (int i = 0; i < schedule.count; i++)
   {
     float y_pos = HEADER_HEIGHT * scale_y +
-                  (i * (ITEM_HEIGHT + 2 * ITEM_PADDING) * scale_y) -
+                  (i * (ITEM_HEIGHT + ITEM_PADDING) * scale_y) -
                   scroll_offset;
 
     // Skip items that are outside the visible area
-    if (y_pos + (ITEM_HEIGHT + 2 * ITEM_PADDING) * scale_y < HEADER_HEIGHT * scale_y ||
+    if (y_pos + (ITEM_HEIGHT + ITEM_PADDING) * scale_y < HEADER_HEIGHT * scale_y ||
         y_pos > GetScreenHeight())
     {
       continue;
     }
 
-    // Create item layout
+    // Create item layout with adjusted padding
     FlexContext item = FlexCreate(
-        (Rectangle){ITEM_PADDING * scale_x, y_pos,
-                    GetScreenWidth() - 2 * ITEM_PADDING * scale_x,
-                    ITEM_HEIGHT * scale_y},
+        (Rectangle){
+            ITEM_HORIZONTAL_PADDING * scale_x,
+            y_pos,
+            GetScreenWidth() - (2 * ITEM_HORIZONTAL_PADDING) * scale_x,
+            ITEM_HEIGHT * scale_y},
         FLEX_DIRECTION_COLUMN);
-    FlexSetPadding(&item, 20 * scale_x);
+    FlexSetPadding(&item, ITEM_HORIZONTAL_PADDING * scale_x);
 
     ScheduleItem *item_ptr = &schedule.items[i];
     Rectangle itemRect = {
@@ -281,49 +325,54 @@ void draw_schedule_items(void)
       DrawRectangleRounded(progressRect, 0.1f, 8 * scale_y,
                            (Color){PURPLE.r, PURPLE.g, PURPLE.b, 40});
 
-      // Create a flex context for the tag
-      float text_size = 20 * scale_y;
-      float text_width = MeasureText("Current", text_size);
-      float vertical_padding = 8 * scale_y;
-      float horizontal_padding = 16 * scale_x;
+      // Calculate tag dimensions
+      float tag_font_size = FONT_SIZE_SMALL;
+      Vector2 tag_text_size = get_text_dimensions("Current", tag_font_size);
+      float tag_width = tag_text_size.x + (2 * TAG_HORIZONTAL_PADDING * scale_x);
+      float tag_height = TAG_HEIGHT * scale_y; // Use fixed height
 
-      // Calculate the total tag size
-      float tag_width = text_width + (2 * horizontal_padding);
-      float tag_height = text_size + (2 * vertical_padding);
-
-      // Position the tag in the top-right corner of the item
+      // Position the tag in the top-right corner with proper padding
       Rectangle tagBounds = {
-          itemRect.x + itemRect.width - (tag_width + 20 * scale_x),
-          itemRect.y + (20 * scale_y),
+          itemRect.x + itemRect.width - (tag_width + ITEM_HORIZONTAL_PADDING * scale_x),
+          itemRect.y + (ITEM_VERTICAL_PADDING * scale_y),
           tag_width,
           tag_height};
 
-      // Draw the purple background first
+      // Draw the purple background
       DrawRectangleRounded(tagBounds, 0.3f, 8 * scale_y, PURPLE);
 
-      // Calculate exact center position for text
-      float text_x = tagBounds.x + (tagBounds.width - text_width) / 2;
-      float text_y = tagBounds.y + (tagBounds.height - text_size) / 2;
+      // Center text both horizontally and vertically in the tag
+      float text_x = tagBounds.x + (tagBounds.width - tag_text_size.x) / 2;
+      float text_y = tagBounds.y + (tagBounds.height - tag_text_size.y) / 2;
 
-      // Draw the text directly at the calculated center position
       DrawTextEx(custom_font, "Current",
                  (Vector2){text_x, text_y},
-                 text_size, 0, WHITE);
+                 tag_font_size * scale_y, 0, WHITE);
 
-      // Draw completion percentage
+      // Draw completion percentage under the tag
       char percent[10];
       sprintf(percent, "%.1f%%", completion);
+      Vector2 percent_size = get_text_dimensions(percent, FONT_SIZE_SMALL);
+
+      float percent_x = tagBounds.x + (tagBounds.width - percent_size.x) / 2;
+      float percent_y = tagBounds.y + tagBounds.height + (4 * scale_y); // Small gap after tag
+
       DrawTextEx(custom_font, percent,
-                 (Vector2){itemRect.x + itemRect.width - (120 * scale_x), itemRect.y + itemRect.height - (40 * scale_y)},
+                 (Vector2){percent_x, percent_y},
                  FONT_SIZE_SMALL * scale_y, 0, DARK_GRAY);
     }
 
-    // Draw title
+    // Draw title with proper vertical alignment
+    float title_y = itemRect.y + (ITEM_VERTICAL_PADDING * scale_y);
     DrawTextEx(custom_font, item_ptr->title,
-               (Vector2){itemRect.x + (20 * scale_x), itemRect.y + (20 * scale_y)},
+               (Vector2){itemRect.x + (ITEM_HORIZONTAL_PADDING * scale_x), title_y},
                FONT_SIZE_LARGE * scale_y, 0, BLACK);
 
-    // Update time display using localtime_r
+    // Draw time with proper vertical alignment
+    float time_y = itemRect.y + itemRect.height -
+                   (ITEM_VERTICAL_PADDING * scale_y) -
+                   (FONT_SIZE_MEDIUM * scale_y);
+
     char timeText[50];
     struct tm start_tm, end_tm;
     localtime_r(&item_ptr->start_time, &start_tm);
@@ -334,7 +383,7 @@ void draw_schedule_items(void)
             end_tm.tm_hour, end_tm.tm_min);
 
     DrawTextEx(custom_font, timeText,
-               (Vector2){itemRect.x + (20 * scale_x), itemRect.y + itemRect.height - (40 * scale_y)},
+               (Vector2){itemRect.x + (ITEM_HORIZONTAL_PADDING * scale_x), time_y},
                FONT_SIZE_MEDIUM * scale_y, 0, (Color){100, 100, 100, 255});
   }
 
@@ -358,47 +407,44 @@ void draw_schedule_items(void)
     DrawRectangleRounded(handle, 0.5f, 8, handleColor);
   }
 
-  // Header section - draw last so it's on top
+  // Header section
   FlexContext header = FlexCreate(
       (Rectangle){0, 0, GetScreenWidth(), HEADER_HEIGHT * scale_y},
       FLEX_DIRECTION_ROW);
   FlexSetMainAlign(&header, ALIGN_SPACE_BETWEEN);
   FlexSetCrossAlign(&header, ALIGN_CENTER);
-  FlexSetPadding(&header, 20 * scale_x);
+  FlexSetPadding(&header, HEADER_PADDING_HORIZONTAL * scale_x); // Use new padding constant
   FlexSetExpectedItems(&header, 2);
 
   // Draw header background
   DrawRectangleRec(header.bounds, RAYWHITE);
 
-  // Draw title
-  Vector2 titleSize = MeasureTextEx(custom_font, "Daily Schedule", FONT_SIZE_LARGE * scale_y, 0);
+  // Calculate title dimensions using our helper
+  Vector2 titleSize = get_text_dimensions("Daily Schedule", FONT_SIZE_LARGE);
   Rectangle titleRect = FlexNext(&header, titleSize);
+
+  // Center text vertically in header with proper padding
+  float header_text_y = titleRect.y + (titleRect.height - titleSize.y) / 2;
+
   DrawTextEx(custom_font, "Daily Schedule",
-             (Vector2){titleRect.x, titleRect.y},
+             (Vector2){titleRect.x, header_text_y},
              FONT_SIZE_LARGE * scale_y, 0, BLACK);
 
-  // // Draw today's date
-  // char date_str[50];
   time_t now = time(NULL);
-  struct tm *tm_now = localtime(&now);
-  // strftime(date_str, sizeof(date_str), "%B %d, %Y", tm_now);
+  struct tm tm_now;
+  localtime_r(&now, &tm_now);
 
-  // Vector2 dateSize = {
-  //     MeasureText(date_str, 30 * scale_y),
-  //     30 * scale_y};
-  // Rectangle dateRect = FlexNext(&header, dateSize);
-  // DrawText(date_str, dateRect.x, dateRect.y, 30 * scale_y, BLACK);
-
-  // Draw current time
+  // Current time with proper vertical alignment
   char current_time[20];
-  sprintf(current_time, "Current Time: %02d:%02d", tm_now->tm_hour, tm_now->tm_min);
+  sprintf(current_time, "Current Time: %02d:%02d", tm_now.tm_hour, tm_now.tm_min);
 
-  Vector2 timeSize = {
-      MeasureText(current_time, 30 * scale_y),
-      30 * scale_y};
+  Vector2 timeSize = get_text_dimensions(current_time, FONT_SIZE_MEDIUM);
   Rectangle timeRect = FlexNext(&header, timeSize);
+
+  float time_header_y = timeRect.y + (timeRect.height - timeSize.y) / 2;
+
   DrawTextEx(custom_font, current_time,
-             (Vector2){timeRect.x, timeRect.y},
+             (Vector2){timeRect.x, time_header_y},
              FONT_SIZE_MEDIUM * scale_y, 0, BLACK);
 }
 
@@ -423,9 +469,11 @@ time_t make_time(int hour, int min)
 
 void init_schdl()
 {
-  // Load the custom font first
-  custom_font = LoadFontEx("fonts/Roboto-Regular.ttf", 96, NULL, 0);
-  SetTextureFilter(custom_font.texture, TEXTURE_FILTER_BILINEAR); // For smoother text
+  // Load the custom font with better parameters
+  const int fontSize = 64;  // Base size for font atlas
+  const int numChars = 256; // Load full ASCII range
+  custom_font = LoadFontEx("fonts/Roboto-Regular.ttf", fontSize, NULL, numChars);
+  SetTextureFilter(custom_font.texture, TEXTURE_FILTER_BILINEAR);
 
   schedule.count = 0;
   schedule.current_time = time(NULL);
