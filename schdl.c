@@ -671,15 +671,32 @@ void draw_current_time_indicator(float header_height)
     float x = ITEM_HORIZONTAL_PADDING * scale_x;
     float width = GetScreenWidth() - (2 * ITEM_HORIZONTAL_PADDING * scale_x);
 
-    // Draw a semi-transparent background line
+    // Calculate opacity based on position
+    float opacity = 1.0f;
+    float fade_distance = 50.0f * scale_y;
+
+    if (y_position < header_height + fade_distance)
+    {
+      opacity = (y_position - header_height) / fade_distance;
+    }
+    else if (y_position > GetScreenHeight() - fade_distance)
+    {
+      opacity = (GetScreenHeight() - y_position) / fade_distance;
+    }
+
+    opacity = fmaxf(0.0f, fminf(1.0f, opacity));
+
+    // Draw a semi-transparent background line with opacity
     DrawLineEx(
         (Vector2){x, y_position},
         (Vector2){x + width, y_position},
         2 * scale_y,
-        (Color){PURPLE.r, PURPLE.g, PURPLE.b, 40});
+        (Color){PURPLE.r, PURPLE.g, PURPLE.b, (unsigned char)(40 * opacity)});
 
-    // Draw the center dot
-    DrawCircle(x + width / 2, y_position, 4 * scale_y, PURPLE);
+    // Draw the center dot with opacity
+    Color dot_color = PURPLE;
+    dot_color.a = (unsigned char)(255 * opacity);
+    DrawCircle(x + width / 2, y_position, 4 * scale_y, dot_color);
 
     // Format current time
     struct tm *tm_now = localtime(&now);
@@ -691,8 +708,9 @@ void draw_current_time_indicator(float header_height)
     float text_x = x + width - time_size.x - (8 * scale_x);
     float text_y = y_position - time_size.y - (4 * scale_y);
 
-    // Draw time text with background
+    // Draw time text with background, applying opacity
     float padding = 4 * scale_x;
+    Color bg_color = (Color){PURPLE.r, PURPLE.g, PURPLE.b, (unsigned char)(40 * opacity)};
     DrawRectangleRounded(
         (Rectangle){
             text_x - padding,
@@ -701,13 +719,15 @@ void draw_current_time_indicator(float header_height)
             time_size.y + (2 * padding)},
         0.3f,
         8 * scale_y,
-        PURPLE);
+        bg_color);
 
+    Color text_color = WHITE;
+    text_color.a = (unsigned char)(255 * opacity);
     DrawTextEx(custom_font, time_text,
                (Vector2){text_x, text_y},
                FONT_SIZE_SMALL * scale_y * font_scale,
                0,
-               WHITE);
+               text_color);
   }
 }
 
