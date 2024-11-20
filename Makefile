@@ -4,7 +4,7 @@ RAYLIB_INCLUDE=-I$(RAYLIB_PATH)/src
 CFLAGS=-Wall -g
 RAYLIB_STATIC_FLAGS=-lraylib -lglfw -lGL -lm -lpthread -ldl -L./deps/raylib/src
 
-SRCS=schdl.c layout.c
+SRCS=main.c data.c scrollable.c flexbox.c
 
 default: schdl
 
