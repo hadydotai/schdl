@@ -3,27 +3,33 @@
 
 #include "raylib.h"
 
-typedef enum fb_direction
+typedef enum fbox_direction
 {
-  FB_DIRECTION_ROW,
-  FB_DIRECTION_COLUMN
-} fb_direction_t;
+  fbox_DIRECTION_ROW,
+  fbox_DIRECTION_COLUMN
+} fbox_direction_t;
 
-typedef enum fb_align
+typedef enum fbox_align
 {
-  FB_ALIGN_START,
-  FB_ALIGN_CENTER,
-  FB_ALIGN_END,
-  FB_ALIGN_SPACE_BETWEEN,
-  FB_ALIGN_SPACE_AROUND
-} fb_align_t;
+  fbox_ALIGN_START,
+  fbox_ALIGN_CENTER,
+  fbox_ALIGN_END,
+  fbox_ALIGN_SPACE_BETWEEN,
+  fbox_ALIGN_SPACE_AROUND
+} fbox_align_t;
 
-typedef struct fb_context
+typedef enum fbox_size_mode
+{
+  fbox_SIZE_FIXED,  // Use exact size provided
+  fbox_SIZE_STRETCH // Stretch to fill container (respecting padding)
+} fbox_size_mode_t;
+
+typedef struct fbox_context
 {
   Rectangle bounds;
-  fb_direction_t direction;
-  fb_align_t main_align;
-  fb_align_t cross_align;
+  fbox_direction_t direction;
+  fbox_align_t main_align;
+  fbox_align_t cross_align;
   float gap;
   float padding;
   int expected_items;
@@ -31,17 +37,26 @@ typedef struct fb_context
   int item_count;
   int max_items;
   float current_pos;
-} fb_context_t;
+  float content_height;
+  float content_width;
+  fbox_size_mode_t size_mode;
+} fbox_context_t;
 
-fb_context_t fb_create(Rectangle bounds, fb_direction_t direction);
-void fb_set_main_align(fb_context_t *ctx, fb_align_t align);
-void fb_set_cross_align(fb_context_t *ctx, fb_align_t align);
-void fb_set_gap(fb_context_t *ctx, float gap);
-void fb_set_padding(fb_context_t *ctx, float padding);
-void fb_set_expected_items(fb_context_t *ctx, int count);
+fbox_context_t fbox_create(Rectangle bounds, fbox_direction_t direction);
+fbox_context_t fbox_create_nested(fbox_context_t *parent, Rectangle bounds);
+void fbox_set_direction(fbox_context_t *ctx, fbox_direction_t direction);
+void fbox_set_main_align(fbox_context_t *ctx, fbox_align_t align);
+void fbox_set_cross_align(fbox_context_t *ctx, fbox_align_t align);
+void fbox_set_gap(fbox_context_t *ctx, float gap);
+void fbox_set_padding(fbox_context_t *ctx, float padding);
+void fbox_set_expected_items(fbox_context_t *ctx, int count);
+void fbox_set_size_mode(fbox_context_t *ctx, fbox_size_mode_t mode);
+void fbox_destroy(fbox_context_t *ctx);
 
-float fb_get_content_height(fb_context_t *ctx);
-float fb_get_content_width(fb_context_t *ctx);
+float fbox_get_content_height(fbox_context_t *ctx);
+float fbox_get_content_width(fbox_context_t *ctx);
 
-Rectangle fb_next(fb_context_t *ctx, Vector2 size);
+Rectangle fbox_next(fbox_context_t *ctx, Vector2 size);
+Vector2 fbox_next_position(fbox_context_t *ctx);
+
 #endif // FLEXBOX_H

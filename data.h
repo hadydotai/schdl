@@ -43,5 +43,8 @@ void resize_schedule(schedule_t *schedule, int new_size);
 void destroy_schedule(schedule_t *schedule);
 
 time_t make_time(int hour, int min);
+char *format_time(time_t time);
+char *format_duration(time_t start, time_t end);
+char *format_date(time_t date);
 
 #endif // DATA_H

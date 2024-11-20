@@ -5,10 +5,11 @@
 
 typedef struct scrollable
 {
-  Rectangle bounds;     // Visible area bounds
-  float content_height; // Total height of content
-  float scroll_offset;  // Current scroll position
+  Rectangle bounds;     // visible area
+  float content_height; // content total height
+  float scroll_offset;  // scroll position
   bool is_dragging;
+  bool is_hovering;
   Vector2 drag_start;
   Color handle_color;
   float handle_width;
@@ -22,7 +23,6 @@ void destroy_scrollable(scrollable_t *scrollable);
 void update_scrollable(scrollable_t *scrollable);
 void draw_scrollable(scrollable_t *scrollable);
 void resize_scrollable(scrollable_t *scrollable, Vector2 newSize);
-// Content rendering helpers
 void begin_measure_content(scrollable_t *scrollable);
 void end_measure_content(scrollable_t *scrollable, float content_height);
 void begin_scrollable_content(scrollable_t *scrollable);

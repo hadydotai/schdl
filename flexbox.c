@@ -1,47 +1,73 @@
 #include <stdlib.h>
 #include "flexbox.h"
 
-fb_context_t fb_create(Rectangle bounds, fb_direction_t direction)
+fbox_context_t fbox_create(Rectangle bounds, fbox_direction_t direction)
 {
-  fb_context_t ctx = {
+  fbox_context_t ctx = {
       .bounds = bounds,
       .direction = direction,
-      .main_align = FB_ALIGN_START,
-      .cross_align = FB_ALIGN_START,
+      .main_align = fbox_ALIGN_START,
+      .cross_align = fbox_ALIGN_START,
       .gap = 0,
       .padding = 0,
-      .expected_items = 1};
+      .expected_items = 1,
+      .content_height = 0,
+      .content_width = 0,
+      .size_mode = fbox_SIZE_FIXED};
   return ctx;
 }
 
-void fb_set_main_align(fb_context_t *ctx, fb_align_t align)
+fbox_context_t fbox_create_nested(fbox_context_t *parent, Rectangle bounds)
+{
+  fbox_context_t ctx = {
+      .bounds = bounds,
+      .direction = parent->direction,
+  };
+  return ctx;
+}
+
+void fbox_destroy(fbox_context_t *ctx)
+{
+  free(ctx->item_sizes);
+}
+
+void fbox_set_direction(fbox_context_t *ctx, fbox_direction_t direction)
+{
+  ctx->direction = direction;
+}
+
+void fbox_set_main_align(fbox_context_t *ctx, fbox_align_t align)
 {
   ctx->main_align = align;
 }
 
-void fb_set_cross_align(fb_context_t *ctx, fb_align_t align)
+void fbox_set_cross_align(fbox_context_t *ctx, fbox_align_t align)
 {
   ctx->cross_align = align;
 }
 
-void fb_set_gap(fb_context_t *ctx, float gap)
+void fbox_set_gap(fbox_context_t *ctx, float gap)
 {
   ctx->gap = gap;
 }
 
-void fb_set_padding(fb_context_t *ctx, float padding)
+void fbox_set_padding(fbox_context_t *ctx, float padding)
 {
   ctx->padding = padding;
 }
 
-void fb_set_expected_items(fb_context_t *ctx, int count)
+void fbox_set_expected_items(fbox_context_t *ctx, int count)
 {
   ctx->expected_items = count;
 }
 
-Rectangle fb_next(fb_context_t *ctx, Vector2 size)
+void fbox_set_size_mode(fbox_context_t *ctx, fbox_size_mode_t mode)
 {
-  // Initialize item_sizes array if needed
+  ctx->size_mode = mode;
+}
+
+Rectangle fbox_next(fbox_context_t *ctx, Vector2 size)
+{
   if (ctx->item_sizes == NULL)
   {
     ctx->max_items = ctx->expected_items;
@@ -50,60 +76,92 @@ Rectangle fb_next(fb_context_t *ctx, Vector2 size)
     ctx->current_pos = ctx->padding;
   }
 
-  // Store current item size
-  ctx->item_sizes[ctx->item_count] = size;
+  Vector2 final_size = size;
+  if (ctx->size_mode == fbox_SIZE_STRETCH)
+  {
+    if (ctx->direction == fbox_DIRECTION_ROW)
+    {
+      final_size.y = ctx->bounds.height - (2 * ctx->padding);
+    }
+    else
+    {
+      final_size.x = ctx->bounds.width - (2 * ctx->padding);
+    }
+  }
+
+  ctx->item_sizes[ctx->item_count] = final_size;
 
   float x = ctx->bounds.x;
   float y = ctx->bounds.y;
 
-  if (ctx->direction == FB_DIRECTION_ROW)
+  if (ctx->direction == fbox_DIRECTION_ROW)
   {
-    // Calculate position based on previous items
     x += ctx->current_pos;
 
-    // Apply cross alignment for y position
-    if (ctx->cross_align == FB_ALIGN_CENTER)
+    if (ctx->cross_align == fbox_ALIGN_CENTER)
     {
-      y += (ctx->bounds.height - size.y) / 2;
+      y += (ctx->bounds.height - final_size.y) / 2;
     }
-    else if (ctx->cross_align == FB_ALIGN_END)
+    else if (ctx->cross_align == fbox_ALIGN_END)
     {
-      y += ctx->bounds.height - size.y - ctx->padding;
+      y += ctx->bounds.height - final_size.y - ctx->padding;
     }
     else
     {
       y += ctx->padding;
     }
 
-    // Update current_pos for next item
-    ctx->current_pos += size.x + ctx->gap;
+    ctx->current_pos += final_size.x;
+
+    if (ctx->item_count < ctx->expected_items - 1)
+    {
+      ctx->current_pos += ctx->gap;
+    }
+
+    if (ctx->item_count == ctx->expected_items - 1)
+    {
+      ctx->current_pos += ctx->padding;
+    }
+
+    ctx->content_width = ctx->current_pos;
   }
-  else // FB_DIRECTION_COLUMN
+  else // fbox_DIRECTION_COLUMN
   {
-    // Calculate position based on previous items
     y += ctx->current_pos;
 
-    // Apply cross alignment for x position
-    if (ctx->cross_align == FB_ALIGN_CENTER)
+    if (ctx->cross_align == fbox_ALIGN_CENTER)
     {
-      x += (ctx->bounds.width - size.x) / 2;
+      x += (ctx->bounds.width - final_size.x) / 2;
     }
-    else if (ctx->cross_align == FB_ALIGN_END)
+    else if (ctx->cross_align == fbox_ALIGN_END)
     {
-      x += ctx->bounds.width - size.x - ctx->padding;
+      x += ctx->bounds.width - final_size.x - ctx->padding;
     }
     else
     {
       x += ctx->padding;
     }
 
-    // Update current_pos for next item
-    ctx->current_pos += size.y;
+    ctx->current_pos += final_size.y;
 
     // Add gap only if this isn't the last item
     if (ctx->item_count < ctx->expected_items - 1)
     {
       ctx->current_pos += ctx->gap;
+    }
+
+    // add padding to the bottom if this is the last item
+    if (ctx->item_count == ctx->expected_items - 1)
+    {
+      ctx->current_pos += ctx->padding;
+    }
+
+    ctx->content_height = ctx->current_pos;
+
+    // Track maximum width for column layout
+    if (final_size.x > ctx->content_width)
+    {
+      ctx->content_width = final_size.x;
     }
   }
 
@@ -118,79 +176,20 @@ Rectangle fb_next(fb_context_t *ctx, Vector2 size)
     ctx->current_pos = ctx->padding;
   }
 
-  return (Rectangle){x, y, size.x, size.y};
+  return (Rectangle){x, y, final_size.x, final_size.y};
 }
 
-float fb_get_content_height(fb_context_t *ctx)
+Vector2 fbox_next_position(fbox_context_t *ctx)
 {
-  if (ctx->item_count == 0)
-  {
-    return 0;
-  }
-
-  if (ctx->direction == FB_DIRECTION_COLUMN)
-  {
-    float total_height = 0;
-
-    // Sum up heights of all items
-    for (int i = 0; i < ctx->item_count; i++)
-    {
-      total_height += ctx->item_sizes[i].y;
-    }
-
-    // Add gaps between items (not after the last item)
-    if (ctx->item_count > 1)
-    {
-      total_height += ctx->gap * (ctx->item_count - 1);
-    }
-
-    // Add padding for top and bottom
-    total_height += ctx->padding * 2;
-
-    return total_height;
-  }
-  else // Row direction
-  {
-    // Find tallest item
-    float max_height = 0;
-    for (int i = 0; i < ctx->item_count; i++)
-    {
-      if (ctx->item_sizes[i].y > max_height)
-      {
-        max_height = ctx->item_sizes[i].y;
-      }
-    }
-
-    // Add padding based on alignment
-    return max_height + (ctx->padding * 2);
-  }
+  return (Vector2){ctx->current_pos, ctx->current_pos};
 }
 
-float fb_get_content_width(fb_context_t *ctx)
+float fbox_get_content_height(fbox_context_t *ctx)
 {
-  // For column direction, width should be the container width minus padding
-  if (ctx->direction == FB_DIRECTION_COLUMN)
-  {
-    return ctx->bounds.width - (ctx->padding * 2);
-  }
-  // For row direction, calculate total width of all items plus gaps
-  else
-  {
-    float total_width = 0;
+  return ctx->content_height;
+}
 
-    // Sum up widths of all items
-    for (int i = 0; i < ctx->item_count; i++)
-    {
-      total_width += ctx->item_sizes[i].x;
-    }
-
-    // Add gaps between items
-    if (ctx->item_count > 1)
-    {
-      total_width += ctx->gap * (ctx->item_count - 1);
-    }
-
-    // Add padding on both sides
-    return total_width + (ctx->padding * 2);
-  }
+float fbox_get_content_width(fbox_context_t *ctx)
+{
+  return ctx->content_width;
 }

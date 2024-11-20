@@ -1,10 +1,12 @@
+#include <stdint.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <time.h>
 #include <stdbool.h>
 #include "data.h"
 
 #ifdef _WIN32
-#define _CRT_SECURE_NO_WARNINGS // Prevents warnings about localtime_s
+#define _CRT_SECURE_NO_WARNINGS // No warnings about localtime_s
 #endif
 
 schedule_iterator_t *create_iterator(schedule_t *schedule)
@@ -103,6 +105,31 @@ time_t make_time(int hour, int min)
   today.tm_min = min;
   today.tm_sec = 0;
   return mktime(&today);
+}
+
+char *format_time(time_t time)
+{
+  struct tm tm;
+  localtime_r(&time, &tm);
+  char *time_str = (char *)malloc(100);
+  sprintf(time_str, "%02d:%02d", tm.tm_hour, tm.tm_min);
+  return time_str;
+}
+
+char *format_duration(time_t start, time_t end)
+{
+  char *duration_str = (char *)malloc(100);
+  sprintf(duration_str, "%s - %s", format_time(start), format_time(end));
+  return duration_str;
+}
+
+char *format_date(time_t date)
+{
+  struct tm tm;
+  localtime_r(&date, &tm);
+  char *date_str = (char *)malloc(100);
+  sprintf(date_str, "%02d.%02d.%04d", tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900);
+  return date_str;
 }
 
 #ifdef _WIN32
