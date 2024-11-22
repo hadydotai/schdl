@@ -1,6 +1,10 @@
 #include <stdlib.h>
 #include "flexbox.h"
 
+//------------------------------------------------------------------------------
+// Creation and destruction
+//------------------------------------------------------------------------------
+
 fbox_context_t fbox_create(Rectangle bounds, fbox_direction_t direction)
 {
   fbox_context_t ctx = {
@@ -30,6 +34,10 @@ void fbox_destroy(fbox_context_t *ctx)
 {
   free(ctx->item_sizes);
 }
+
+//------------------------------------------------------------------------------
+// Configuration functions
+//------------------------------------------------------------------------------
 
 void fbox_set_direction(fbox_context_t *ctx, fbox_direction_t direction)
 {
@@ -66,8 +74,13 @@ void fbox_set_size_mode(fbox_context_t *ctx, fbox_size_mode_t mode)
   ctx->size_mode = mode;
 }
 
+//------------------------------------------------------------------------------
+// Layout functions
+//------------------------------------------------------------------------------
+
 Rectangle fbox_next(fbox_context_t *ctx, Vector2 size)
 {
+  // Initialize item tracking on first call
   if (ctx->item_sizes == NULL)
   {
     ctx->max_items = ctx->expected_items;
@@ -76,6 +89,7 @@ Rectangle fbox_next(fbox_context_t *ctx, Vector2 size)
     ctx->current_pos = ctx->padding;
   }
 
+  // Handle size stretching if enabled
   Vector2 final_size = size;
   if (ctx->size_mode == fbox_SIZE_STRETCH)
   {
@@ -94,10 +108,12 @@ Rectangle fbox_next(fbox_context_t *ctx, Vector2 size)
   float x = ctx->bounds.x;
   float y = ctx->bounds.y;
 
+  // Layout items in a row
   if (ctx->direction == fbox_DIRECTION_ROW)
   {
     x += ctx->current_pos;
 
+    // Handle cross-axis alignment
     if (ctx->cross_align == fbox_ALIGN_CENTER)
     {
       y += (ctx->bounds.height - final_size.y) / 2;
@@ -125,10 +141,12 @@ Rectangle fbox_next(fbox_context_t *ctx, Vector2 size)
 
     ctx->content_width = ctx->current_pos;
   }
-  else // fbox_DIRECTION_COLUMN
+  // Layout items in a column
+  else
   {
     y += ctx->current_pos;
 
+    // Handle cross-axis alignment
     if (ctx->cross_align == fbox_ALIGN_CENTER)
     {
       x += (ctx->bounds.width - final_size.x) / 2;
@@ -144,13 +162,11 @@ Rectangle fbox_next(fbox_context_t *ctx, Vector2 size)
 
     ctx->current_pos += final_size.y;
 
-    // Add gap only if this isn't the last item
     if (ctx->item_count < ctx->expected_items - 1)
     {
       ctx->current_pos += ctx->gap;
     }
 
-    // add padding to the bottom if this is the last item
     if (ctx->item_count == ctx->expected_items - 1)
     {
       ctx->current_pos += ctx->padding;
@@ -167,7 +183,7 @@ Rectangle fbox_next(fbox_context_t *ctx, Vector2 size)
 
   ctx->item_count++;
 
-  // Reset if we've processed all expected items
+  // Reset tracking after processing all items
   if (ctx->item_count == ctx->expected_items)
   {
     free(ctx->item_sizes);
@@ -183,6 +199,10 @@ Vector2 fbox_next_position(fbox_context_t *ctx)
 {
   return (Vector2){ctx->current_pos, ctx->current_pos};
 }
+
+//------------------------------------------------------------------------------
+// Layout information
+//------------------------------------------------------------------------------
 
 float fbox_get_content_height(fbox_context_t *ctx)
 {
