@@ -312,11 +312,6 @@ Rectangle fbox_next(fbox_context_t *ctx, Vector2 size)
   return *item_position;
 }
 
-Vector2 fbox_next_position(fbox_context_t *ctx)
-{
-  return (Vector2){ctx->current_pos, ctx->current_pos};
-}
-
 //------------------------------------------------------------------------------
 // Layout information
 //------------------------------------------------------------------------------

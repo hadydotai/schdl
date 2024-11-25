@@ -20,34 +20,6 @@
 #define LIGHT_GRAY \
   (Color) { 220, 220, 220, 255 }
 
-void debug_print_schedule(schedule_t *schedule)
-{
-  for (int i = 0; i < schedule->count; i++)
-  {
-    struct tm start_tm, end_tm;
-    localtime_r(&schedule->items[i].start, &start_tm);
-    localtime_r(&schedule->items[i].end, &end_tm);
-
-    printf("Item %d: %s (%02d:%02d - %02d:%02d)\n",
-           i,
-           schedule->items[i].title,
-           start_tm.tm_hour, start_tm.tm_min,
-           end_tm.tm_hour, end_tm.tm_min);
-  }
-}
-
-void debug_print_schedule_items_iter(schedule_t *schedule)
-{
-  schedule_iterator_t *iterator = create_iterator(schedule);
-  schedule_item_t *item = get_current_item(iterator);
-  while (item != NULL)
-  {
-    printf("%s\n", item->title);
-    item = get_next_item(iterator);
-  }
-  destroy_iterator(iterator);
-}
-
 float get_item_completion(schedule_item_t *item)
 {
   time_t now = time(NULL);
@@ -221,8 +193,6 @@ int main()
   add_item(schedule, (schedule_item_t){.title = "Personal Work", .start = make_time(13, 0), .end = make_time(18, 0), .type = SCHEDULE_ITEM_TYPE_EVENT});
   add_item(schedule, (schedule_item_t){.title = "Dinner", .start = make_time(18, 0), .end = make_time(19, 0), .type = SCHEDULE_ITEM_TYPE_BREAK});
   add_item(schedule, (schedule_item_t){.title = "Supper", .start = make_time(19, 0), .end = make_time(20, 0), .type = SCHEDULE_ITEM_TYPE_BREAK});
-
-  // debug_print_schedule_items_iter(schedule);
 
   scrollable_t *scrollable = create_scrollable((Rectangle){
       0, scaling_apply_y(50),

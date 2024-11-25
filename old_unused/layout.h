@@ -50,8 +50,4 @@ Rectangle FlexNext(FlexContext *ctx, Vector2 size);
 // Create a nested flex context
 FlexContext FlexNested(FlexContext *parent, Vector2 size, FlexDirection direction);
 
-// Add new function declarations
-void FlexStart(FlexContext *ctx);
-void FlexEnd(FlexContext *ctx);
-
 #endif // LAYOUT_H
