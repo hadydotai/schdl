@@ -5,6 +5,7 @@
 
 typedef struct
 {
+  Rectangle base_bounds;
   Rectangle bounds;
   float content_height;
   float scroll_offset;

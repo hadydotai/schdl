@@ -129,11 +129,6 @@ int main()
 
     scaling_update();
 
-    scrollable->bounds = (Rectangle){
-        0, 0,
-        scaling_apply_x(WINDOW_WIDTH),
-        scaling_apply_y(WINDOW_HEIGHT)};
-
     begin_scrollable(scrollable);
     draw_schedule(schedule, scrollable);
     end_scrollable(scrollable);
