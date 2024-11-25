@@ -42,14 +42,15 @@ void debug_print_schedule_items_iter(schedule_t *schedule)
   destroy_iterator(iterator);
 }
 
-float draw_schedule(schedule_t *schedule)
+void draw_schedule(schedule_t *schedule, scrollable_t *scrollable)
 {
   schedule_iterator_t *iterator = create_iterator(schedule);
   schedule_item_t *item = get_current_item(iterator);
 
   fbox_context_t fb = fbox_create(
       (Rectangle){0, 0, GetScreenWidth(), GetScreenHeight()},
-      fbox_DIRECTION_COLUMN);
+      fbox_DIRECTION_COLUMN,
+      scrollable);
   fbox_set_main_align(&fb, fbox_ALIGN_START);
   fbox_set_cross_align(&fb, fbox_ALIGN_START);
   fbox_set_gap(&fb, 14 * scale_y);
@@ -97,7 +98,6 @@ float draw_schedule(schedule_t *schedule)
 
   destroy_iterator(iterator);
   fbox_destroy(&fb);
-  return fbox_get_content_height(&fb);
 }
 
 void update_scaling(void)
@@ -123,10 +123,10 @@ int main()
 
   debug_print_schedule_items_iter(schedule);
 
-  scrollable_t *scrollable = create_scrollable((Vector2){
-      0,
-      0,
-  });
+  scrollable_t *scrollable = create_scrollable((Rectangle){
+      0, 0,
+      WINDOW_WIDTH * scale_x,
+      WINDOW_HEIGHT * scale_y});
 
   while (!WindowShouldClose())
   {
@@ -134,22 +134,14 @@ int main()
     ClearBackground(RAYWHITE);
 
     update_scaling();
-    resize_scrollable(scrollable, (Vector2){WINDOW_WIDTH * scale_x, WINDOW_HEIGHT * scale_y});
+    scrollable->bounds = (Rectangle){
+        0, 0,
+        WINDOW_WIDTH * scale_x,
+        WINDOW_HEIGHT * scale_y};
 
-    // First pass: measure content height only
-    begin_measure_content(scrollable);
-    float content_height = draw_schedule(schedule);
-    end_measure_content(scrollable, content_height);
-
-    // Update scrolling before drawing
-    update_scrollable(scrollable);
-
-    // Second pass: actually draw content
-    begin_scrollable_content(scrollable);
-    draw_schedule(schedule);
-    end_scrollable_content(scrollable);
-
-    draw_scrollable(scrollable);
+    begin_scrollable(scrollable);
+    draw_schedule(schedule, scrollable);
+    end_scrollable(scrollable);
 
     EndDrawing();
   }

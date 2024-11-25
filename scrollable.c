@@ -4,6 +4,10 @@
 #include "rlgl.h"
 #include "scrollable.h"
 
+#define HANDLE_WIDTH 20
+#define HANDLE_PADDING 2
+#define HANDLE_RADIUS 5
+
 static float Clamp(float value, float min, float max)
 {
   if (value < min)
@@ -13,20 +17,15 @@ static float Clamp(float value, float min, float max)
   return value;
 }
 
-scrollable_t *create_scrollable(Vector2 startPos)
+scrollable_t *create_scrollable(Rectangle bounds)
 {
   scrollable_t *scrollable = (scrollable_t *)malloc(sizeof(scrollable_t));
-  scrollable->bounds = (Rectangle){startPos.x, startPos.y, 0, 0};
+  scrollable->bounds = bounds;
   scrollable->content_height = 0;
   scrollable->scroll_offset = 0;
   scrollable->is_dragging = false;
-  scrollable->is_hovering = false;
   scrollable->drag_start = (Vector2){0, 0};
-  scrollable->handle_color = (Color){100, 100, 100, 200};
-  scrollable->handle_width = 20;
-  scrollable->handle_padding = 2;
-  scrollable->handle_radius = 5;
-  scrollable->content_measuring = false;
+  scrollable->last_y_pos = 0;
   return scrollable;
 }
 
@@ -35,15 +34,17 @@ void destroy_scrollable(scrollable_t *scrollable)
   free(scrollable);
 }
 
-void update_scrollable(scrollable_t *scrollable)
+void begin_scrollable(scrollable_t *scrollable)
 {
-  if (scrollable->content_measuring)
-    return;
-
-  float visible_height = scrollable->bounds.height;
-  float max_scroll = fmaxf(0, scrollable->content_height - visible_height);
-
+  // Handle input
   Vector2 mouse = GetMousePosition();
+  Rectangle scrollbar_bounds = {
+      scrollable->bounds.x + scrollable->bounds.width - HANDLE_WIDTH - HANDLE_PADDING,
+      scrollable->bounds.y,
+      HANDLE_WIDTH,
+      scrollable->bounds.height};
+
+  // Mouse wheel scrolling
   if (CheckCollisionPointRec(mouse, scrollable->bounds))
   {
     float wheel = GetMouseWheelMove();
@@ -53,121 +54,78 @@ void update_scrollable(scrollable_t *scrollable)
     }
   }
 
-  Rectangle scrollbar_bounds = {
-      scrollable->bounds.x + scrollable->bounds.width - scrollable->handle_width - scrollable->handle_padding,
-      scrollable->bounds.y,
-      scrollable->handle_width,
-      scrollable->bounds.height};
-
-  if (CheckCollisionPointRec(mouse, scrollbar_bounds))
-  {
-    scrollable->is_hovering = true;
-  }
-  else
-  {
-    scrollable->is_hovering = false;
-  }
-
+  // Handle dragging
   if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(mouse, scrollbar_bounds))
   {
     scrollable->is_dragging = true;
     scrollable->drag_start = mouse;
   }
 
-  if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(mouse, scrollbar_bounds))
+  if (scrollable->is_dragging)
   {
-    float visible_height = scrollable->bounds.height;
-    float click_pos = mouse.y - scrollable->bounds.y;
-    float scroll_percent = click_pos / scrollable->bounds.height;
-    float max_scroll = fmaxf(0, scrollable->content_height - visible_height);
-    scrollable->scroll_offset = scroll_percent * max_scroll;
+    if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
+    {
+      float delta = mouse.y - scrollable->drag_start.y;
+      float max_scroll = fmaxf(0, scrollable->content_height - scrollable->bounds.height);
+      float scroll_ratio = delta / scrollable->bounds.height;
+      scrollable->scroll_offset += scroll_ratio * max_scroll * 50;
+      scrollable->drag_start = mouse;
+    }
+    else
+    {
+      scrollable->is_dragging = false;
+    }
   }
 
-  if (scrollable->is_dragging && IsMouseButtonDown(MOUSE_BUTTON_LEFT))
-  {
-    float delta = mouse.y - scrollable->drag_start.y;
-    float scroll_ratio = delta / scrollable->bounds.height;
-    scrollable->scroll_offset += scroll_ratio * max_scroll * 50;
-    scrollable->drag_start = mouse;
-  }
-  else
-  {
-    scrollable->is_dragging = false;
-  }
-
+  // Clamp scroll offset
+  float max_scroll = fmaxf(0, scrollable->content_height - scrollable->bounds.height);
   scrollable->scroll_offset = Clamp(scrollable->scroll_offset, 0, max_scroll);
-}
 
-void draw_scrollable(scrollable_t *scrollable)
-{
-  if (scrollable->content_measuring)
-    return;
-
-  float visible_height = scrollable->bounds.height;
-
-  if (scrollable->content_height > visible_height)
-  {
-    float content_ratio = visible_height / scrollable->content_height;
-    float handle_height = fmaxf(visible_height * content_ratio, 20);
-    float scroll_percent = scrollable->scroll_offset / (scrollable->content_height - visible_height);
-    float handle_y = scrollable->bounds.y + (scrollable->bounds.height - handle_height) * scroll_percent;
-
-    // background
-    DrawRectangle(
-        scrollable->bounds.x + scrollable->bounds.width - scrollable->handle_width - scrollable->handle_padding,
-        scrollable->bounds.y,
-        scrollable->handle_width,
-        scrollable->bounds.height,
-        (Color){200, 200, 200, 100});
-
-    Color handle_color = scrollable->is_hovering ? (Color){150, 150, 150, 255} : scrollable->handle_color;
-
-    // handle
-    DrawRectangleRounded(
-        (Rectangle){
-            scrollable->bounds.x + scrollable->bounds.width - scrollable->handle_width - scrollable->handle_padding,
-            handle_y,
-            scrollable->handle_width,
-            handle_height},
-        scrollable->handle_radius,
-        8,
-        handle_color);
-  }
-}
-
-void resize_scrollable(scrollable_t *scrollable, Vector2 newSize)
-{
-  scrollable->bounds.width = newSize.x;
-  scrollable->bounds.height = newSize.y;
-}
-
-void begin_measure_content(scrollable_t *scrollable)
-{
-  scrollable->content_measuring = true;
-  BeginScissorMode(0, -10000, GetScreenWidth(), 10000); // Render off-screen
-}
-
-void end_measure_content(scrollable_t *scrollable, float content_height)
-{
-  scrollable->content_height = content_height;
-  scrollable->content_measuring = false;
-  EndScissorMode();
-}
-
-void begin_scrollable_content(scrollable_t *scrollable)
-{
+  // Begin scissor mode and transform
   BeginScissorMode(
       scrollable->bounds.x,
       scrollable->bounds.y,
-      scrollable->bounds.width - scrollable->handle_width - (scrollable->handle_padding * 2),
+      scrollable->bounds.width - HANDLE_WIDTH - (HANDLE_PADDING * 2),
       scrollable->bounds.height);
 
   rlPushMatrix();
   rlTranslatef(0, -scrollable->scroll_offset, 0);
+
+  scrollable->last_y_pos = 0;
 }
 
-void end_scrollable_content(scrollable_t *scrollable)
+void end_scrollable(scrollable_t *scrollable)
 {
+  // Update content height and restore transform
+  scrollable->content_height = scrollable->last_y_pos;
   rlPopMatrix();
   EndScissorMode();
+
+  // Draw scrollbar if needed
+  if (scrollable->content_height > scrollable->bounds.height)
+  {
+    float content_ratio = scrollable->bounds.height / scrollable->content_height;
+    float handle_height = fmaxf(scrollable->bounds.height * content_ratio, 20);
+    float scroll_percent = scrollable->scroll_offset / (scrollable->content_height - scrollable->bounds.height);
+    float handle_y = scrollable->bounds.y + (scrollable->bounds.height - handle_height) * scroll_percent;
+
+    // Draw scrollbar background
+    DrawRectangle(
+        scrollable->bounds.x + scrollable->bounds.width - HANDLE_WIDTH - HANDLE_PADDING,
+        scrollable->bounds.y,
+        HANDLE_WIDTH,
+        scrollable->bounds.height,
+        (Color){200, 200, 200, 100});
+
+    // Draw handle
+    DrawRectangleRounded(
+        (Rectangle){
+            scrollable->bounds.x + scrollable->bounds.width - HANDLE_WIDTH - HANDLE_PADDING,
+            handle_y,
+            HANDLE_WIDTH,
+            handle_height},
+        HANDLE_RADIUS,
+        8,
+        (Color){100, 100, 100, 200});
+  }
 }

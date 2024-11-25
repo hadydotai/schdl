@@ -44,10 +44,11 @@ typedef struct fbox_context
   float content_height;       // Total height of content
   float content_width;        // Total width of content
   fbox_size_mode_t size_mode; // How items should be sized
+  scrollable_t *scrollable;   // Add this field
 } fbox_context_t;
 
 // Creation and destruction
-fbox_context_t fbox_create(Rectangle bounds, fbox_direction_t direction);
+fbox_context_t fbox_create(Rectangle bounds, fbox_direction_t direction, scrollable_t *scrollable);
 fbox_context_t fbox_create_nested(fbox_context_t *parent, Rectangle bounds);
 void fbox_destroy(fbox_context_t *ctx);
 

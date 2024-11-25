@@ -1,11 +1,12 @@
 #include <stdlib.h>
+#include "scrollable.h"
 #include "flexbox.h"
 
 //------------------------------------------------------------------------------
 // Creation and destruction
 //------------------------------------------------------------------------------
 
-fbox_context_t fbox_create(Rectangle bounds, fbox_direction_t direction)
+fbox_context_t fbox_create(Rectangle bounds, fbox_direction_t direction, scrollable_t *scrollable)
 {
   fbox_context_t ctx = {
       .bounds = bounds,
@@ -17,7 +18,8 @@ fbox_context_t fbox_create(Rectangle bounds, fbox_direction_t direction)
       .expected_items = 1,
       .content_height = 0,
       .content_width = 0,
-      .size_mode = fbox_SIZE_FIXED};
+      .size_mode = fbox_SIZE_FIXED,
+      .scrollable = scrollable};
   return ctx;
 }
 
@@ -26,12 +28,17 @@ fbox_context_t fbox_create_nested(fbox_context_t *parent, Rectangle bounds)
   fbox_context_t ctx = {
       .bounds = bounds,
       .direction = parent->direction,
-  };
+      .scrollable = parent->scrollable};
   return ctx;
 }
 
 void fbox_destroy(fbox_context_t *ctx)
 {
+  if (ctx->scrollable != NULL)
+  {
+    float total_height = ctx->content_height;
+    ctx->scrollable->last_y_pos = fmaxf(ctx->scrollable->last_y_pos, total_height);
+  }
   free(ctx->item_sizes);
 }
 
