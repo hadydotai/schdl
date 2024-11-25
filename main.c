@@ -12,6 +12,13 @@
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
 
+#define LIGHT_BLUE \
+  (Color) { 235, 240, 255, 255 }
+#define LIGHT_PURPLE \
+  (Color) { 245, 235, 255, 255 }
+#define LIGHT_GRAY \
+  (Color) { 220, 220, 220, 255 }
+
 void debug_print_schedule(schedule_t *schedule)
 {
   for (int i = 0; i < schedule->count; i++)
@@ -40,21 +47,62 @@ void debug_print_schedule_items_iter(schedule_t *schedule)
   destroy_iterator(iterator);
 }
 
+float get_item_completion(schedule_item_t *item)
+{
+  time_t now = time(NULL);
+  if (now < item->start)
+    return 0.0f;
+  if (now > item->end)
+    return 100.0f;
+
+  float duration = item->end - item->start;
+  float elapsed = now - item->start;
+  return (elapsed / duration) * 100.0f;
+}
+
+void draw_header()
+{
+  fbox_context_t header_fbox = fbox_create((Rectangle){0, 0, GetScreenWidth(), scaling_apply_y(50)},
+                                           fbox_DIRECTION_ROW,
+                                           NULL);
+  fbox_set_main_align(&header_fbox, fbox_ALIGN_SPACE_BETWEEN);
+  fbox_set_cross_align(&header_fbox, fbox_ALIGN_CENTER);
+  fbox_set_expected_items(&header_fbox, 2);
+  fbox_set_padding(&header_fbox, 14);
+  fbox_set_size_mode(&header_fbox, fbox_SIZE_FIXED);
+
+  int titleWidth = MeasureText("Schedule", scaling_apply_y(20));
+  Rectangle titleRect = fbox_next(&header_fbox, (Vector2){titleWidth, scaling_apply_y(20)});
+  DrawText("Schedule", titleRect.x, titleRect.y, scaling_apply_y(20), BLACK);
+
+  char *timeText = format_time_12hr(time(NULL));
+  int timeWidth = MeasureText(timeText, scaling_apply_y(20));
+  Rectangle timeRect = fbox_next(&header_fbox, (Vector2){timeWidth, scaling_apply_y(20)});
+  DrawText(timeText, timeRect.x, timeRect.y, scaling_apply_y(20), BLACK);
+
+  DrawLine(0,
+           header_fbox.bounds.y + header_fbox.bounds.height,
+           GetScreenWidth(),
+           header_fbox.bounds.y + header_fbox.bounds.height,
+           (Color){GRAY.r, GRAY.g, GRAY.b, 100});
+  fbox_destroy(&header_fbox);
+}
+
 void draw_schedule(schedule_t *schedule, scrollable_t *scrollable)
 {
   schedule_iterator_t *iterator = create_iterator(schedule);
   schedule_item_t *item = get_current_item(iterator);
 
-  fbox_context_t fb = fbox_create(
-      (Rectangle){0, 0, GetScreenWidth(), GetScreenHeight()},
+  fbox_context_t items_fbox = fbox_create(
+      (Rectangle){0, scaling_apply_y(50), GetScreenWidth(), GetScreenHeight()},
       fbox_DIRECTION_COLUMN,
       scrollable);
-  fbox_set_main_align(&fb, fbox_ALIGN_START);
-  fbox_set_cross_align(&fb, fbox_ALIGN_START);
-  fbox_set_gap(&fb, 14);
-  fbox_set_padding(&fb, 30);
-  fbox_set_expected_items(&fb, schedule->count);
-  fbox_set_size_mode(&fb, fbox_SIZE_STRETCH);
+  fbox_set_main_align(&items_fbox, fbox_ALIGN_START);
+  fbox_set_cross_align(&items_fbox, fbox_ALIGN_START);
+  fbox_set_gap(&items_fbox, 14);
+  fbox_set_padding(&items_fbox, 14);
+  fbox_set_expected_items(&items_fbox, schedule->count);
+  fbox_set_size_mode(&items_fbox, fbox_SIZE_STRETCH);
 
   while (item != NULL)
   {
@@ -62,27 +110,38 @@ void draw_schedule(schedule_t *schedule, scrollable_t *scrollable)
         0,
         scaling_apply_y(100)};
 
-    Rectangle itemRect = fbox_next(&fb, size);
-    DrawRectangleRec(itemRect, LIGHTGRAY);
-    DrawRectangleLinesEx(itemRect, 2 * scaling_get_x(), DARKGRAY);
+    bool is_current = is_item_current(item);
+    bool is_past = is_item_past(item);
 
-    fbox_context_t item_fb = fbox_create_nested(&fb, itemRect);
-    fbox_set_direction(&item_fb, fbox_DIRECTION_COLUMN);
-    fbox_set_main_align(&item_fb, fbox_ALIGN_START);
-    fbox_set_cross_align(&item_fb, fbox_ALIGN_START);
-    fbox_set_gap(&item_fb, 5);
-    fbox_set_padding(&item_fb, 10);
-    fbox_set_expected_items(&item_fb, 2);
+    Rectangle itemRect = fbox_next(&items_fbox, size);
+    Color color = item->type == SCHEDULE_ITEM_TYPE_BREAK ? LIGHT_BLUE : LIGHT_PURPLE;
+    DrawRectangleRec(itemRect, color);
+    Color lineColor = is_current ? PURPLE : is_past ? LIGHT_GRAY
+                                                    : DARKGRAY;
+    DrawRectangleRoundedLinesEx(itemRect, 0.1f, 8, 3, lineColor);
 
-    Rectangle titleRect = fbox_next(&item_fb, (Vector2){0, scaling_apply_y(20)});
+    float completion = get_item_completion(item);
+    Rectangle progressRect = itemRect;
+    progressRect.width = (progressRect.width * completion) / 100.0f;
+    DrawRectangleRounded(progressRect, 0.1f, 8, (Color){lineColor.r, lineColor.g, lineColor.b, 40});
+
+    fbox_context_t item_content_fbox = fbox_create_nested(&items_fbox, itemRect);
+    fbox_set_direction(&item_content_fbox, fbox_DIRECTION_COLUMN);
+    fbox_set_main_align(&item_content_fbox, fbox_ALIGN_START);
+    fbox_set_cross_align(&item_content_fbox, fbox_ALIGN_START);
+    fbox_set_gap(&item_content_fbox, 5);
+    fbox_set_padding(&item_content_fbox, 10);
+    fbox_set_expected_items(&item_content_fbox, 2);
+
+    Rectangle titleRect = fbox_next(&item_content_fbox, (Vector2){0, scaling_apply_y(20)});
     DrawText(item->title,
              titleRect.x,
              titleRect.y,
              scaling_apply_y(20),
              BLACK);
 
-    Rectangle timeRect = fbox_next(&item_fb, (Vector2){0, scaling_apply_y(20)});
-    char *timeText = format_duration(item->start, item->end);
+    Rectangle timeRect = fbox_next(&item_content_fbox, (Vector2){0, scaling_apply_y(20)});
+    char *timeText = format_duration_12hr(item->start, item->end);
 
     DrawText(timeText,
              timeRect.x,
@@ -91,11 +150,11 @@ void draw_schedule(schedule_t *schedule, scrollable_t *scrollable)
              BLACK);
 
     item = get_next_item(iterator);
-    fbox_destroy(&item_fb);
+    fbox_destroy(&item_content_fbox);
   }
 
   destroy_iterator(iterator);
-  fbox_destroy(&fb);
+  fbox_destroy(&items_fbox);
 }
 
 int main()
@@ -108,37 +167,40 @@ int main()
   scaling_init(WINDOW_WIDTH, WINDOW_HEIGHT);
 
   schedule_t *schedule = create_schedule();
-  add_item(schedule, (schedule_item_t){.title = "Breakfast", .start = make_time(8, 0), .end = make_time(9, 0)});
-  add_item(schedule, (schedule_item_t){.title = "SR Work", .start = make_time(9, 0), .end = make_time(12, 0)});
-  add_item(schedule, (schedule_item_t){.title = "Lunch", .start = make_time(12, 0), .end = make_time(13, 0)});
-  add_item(schedule, (schedule_item_t){.title = "Personal Work", .start = make_time(13, 0), .end = make_time(18, 0)});
-  add_item(schedule, (schedule_item_t){.title = "Dinner", .start = make_time(18, 0), .end = make_time(19, 0)});
-  add_item(schedule, (schedule_item_t){.title = "Supper", .start = make_time(19, 0), .end = make_time(20, 0)});
+  add_item(schedule, (schedule_item_t){.title = "Breakfast", .start = make_time(8, 0), .end = make_time(9, 0), .type = SCHEDULE_ITEM_TYPE_BREAK});
+  add_item(schedule, (schedule_item_t){.title = "SR Work", .start = make_time(9, 0), .end = make_time(12, 0), .type = SCHEDULE_ITEM_TYPE_EVENT});
+  add_item(schedule, (schedule_item_t){.title = "Lunch", .start = make_time(12, 0), .end = make_time(13, 0), .type = SCHEDULE_ITEM_TYPE_BREAK});
+  add_item(schedule, (schedule_item_t){.title = "Personal Work", .start = make_time(13, 0), .end = make_time(18, 0), .type = SCHEDULE_ITEM_TYPE_EVENT});
+  add_item(schedule, (schedule_item_t){.title = "Dinner", .start = make_time(18, 0), .end = make_time(19, 0), .type = SCHEDULE_ITEM_TYPE_BREAK});
+  add_item(schedule, (schedule_item_t){.title = "Supper", .start = make_time(19, 0), .end = make_time(20, 0), .type = SCHEDULE_ITEM_TYPE_BREAK});
 
-  debug_print_schedule_items_iter(schedule);
+  // debug_print_schedule_items_iter(schedule);
 
   scrollable_t *scrollable = create_scrollable((Rectangle){
-      0, 0,
+      0, scaling_apply_y(50),
       WINDOW_WIDTH,
-      WINDOW_HEIGHT});
+      WINDOW_HEIGHT - scaling_apply_y(50)});
 
   while (!WindowShouldClose())
   {
     BeginDrawing();
-    ClearBackground(RAYWHITE);
 
+    ClearBackground(RAYWHITE);
     scaling_update();
 
     begin_scrollable(scrollable);
     draw_schedule(schedule, scrollable);
     end_scrollable(scrollable);
 
+    draw_header();
+
     EndDrawing();
   }
 
   scaling_cleanup();
-  CloseWindow();
   destroy_schedule(schedule);
   destroy_scrollable(scrollable);
+  CloseWindow();
+
   return 0;
 }

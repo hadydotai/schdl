@@ -52,6 +52,18 @@ schedule_item_t *get_previous_item(schedule_iterator_t *iterator)
   return &iterator->schedule->items[iterator->index];
 }
 
+bool is_item_current(schedule_item_t *item)
+{
+  time_t now = time(NULL);
+  return now >= item->start && now <= item->end;
+}
+
+bool is_item_past(schedule_item_t *item)
+{
+  time_t now = time(NULL);
+  return now > item->end;
+}
+
 schedule_t *create_schedule()
 {
   schedule_t *schedule = (schedule_t *)malloc(sizeof(schedule_t));
@@ -116,10 +128,26 @@ char *format_time(time_t time)
   return time_str;
 }
 
+char *format_time_12hr(time_t time)
+{
+  struct tm tm;
+  localtime_r(&time, &tm);
+  char *time_str = (char *)malloc(100);
+  sprintf(time_str, "%02d:%02d %s", tm.tm_hour % 12 == 0 ? 12 : tm.tm_hour % 12, tm.tm_min, tm.tm_hour >= 12 ? "PM" : "AM");
+  return time_str;
+}
+
 char *format_duration(time_t start, time_t end)
 {
   char *duration_str = (char *)malloc(100);
   sprintf(duration_str, "%s - %s", format_time(start), format_time(end));
+  return duration_str;
+}
+
+char *format_duration_12hr(time_t start, time_t end)
+{
+  char *duration_str = (char *)malloc(100);
+  sprintf(duration_str, "%s - %s", format_time_12hr(start), format_time_12hr(end));
   return duration_str;
 }
 

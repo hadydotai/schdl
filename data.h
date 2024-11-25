@@ -8,12 +8,19 @@
 #include <time.h>
 #include <stdbool.h>
 
+typedef enum schedule_item_type
+{
+  SCHEDULE_ITEM_TYPE_EVENT,
+  SCHEDULE_ITEM_TYPE_BREAK
+} schedule_item_type_t;
+
 typedef struct schedule_item
 {
   char title[100];
   time_t start;
   time_t end;
   bool is_current;
+  schedule_item_type_t type;
 } schedule_item_t;
 
 typedef struct schedule
@@ -35,6 +42,8 @@ void destroy_iterator(schedule_iterator_t *iterator);
 schedule_item_t *get_current_item(schedule_iterator_t *iterator);
 schedule_item_t *get_next_item(schedule_iterator_t *iterator);
 schedule_item_t *get_previous_item(schedule_iterator_t *iterator);
+bool is_item_current(schedule_item_t *item);
+bool is_item_past(schedule_item_t *item);
 
 schedule_t *create_schedule();
 void add_item(schedule_t *schedule, schedule_item_t item);
@@ -44,7 +53,9 @@ void destroy_schedule(schedule_t *schedule);
 
 time_t make_time(int hour, int min);
 char *format_time(time_t time);
+char *format_time_12hr(time_t time);
 char *format_duration(time_t start, time_t end);
+char *format_duration_12hr(time_t start, time_t end);
 char *format_date(time_t date);
 
 #endif // DATA_H
