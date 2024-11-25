@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "raylib.h"
 #include "data.h"
 #include "scrollable.h"
@@ -60,6 +61,13 @@ float get_item_completion(schedule_item_t *item)
   return (elapsed / duration) * 100.0f;
 }
 
+char *format_percentage(float percentage)
+{
+  char *buffer = malloc(10);
+  sprintf(buffer, "%d%%", (int)percentage);
+  return buffer;
+}
+
 void draw_header()
 {
   fbox_context_t header_fbox = fbox_create((Rectangle){0, 0, GetScreenWidth(), scaling_apply_y(50)},
@@ -94,7 +102,7 @@ void draw_schedule(schedule_t *schedule, scrollable_t *scrollable)
   schedule_item_t *item = get_current_item(iterator);
 
   fbox_context_t items_fbox = fbox_create(
-      (Rectangle){0, scaling_apply_y(50), GetScreenWidth(), GetScreenHeight()},
+      (Rectangle){0, scaling_apply_y(50), scrollable->bounds.width, scrollable->bounds.height},
       fbox_DIRECTION_COLUMN,
       scrollable);
   fbox_set_main_align(&items_fbox, fbox_ALIGN_START);
@@ -126,30 +134,75 @@ void draw_schedule(schedule_t *schedule, scrollable_t *scrollable)
     DrawRectangleRounded(progressRect, 0.1f, 8, (Color){lineColor.r, lineColor.g, lineColor.b, 40});
 
     fbox_context_t item_content_fbox = fbox_create_nested(&items_fbox, itemRect);
-    fbox_set_direction(&item_content_fbox, fbox_DIRECTION_COLUMN);
-    fbox_set_main_align(&item_content_fbox, fbox_ALIGN_START);
-    fbox_set_cross_align(&item_content_fbox, fbox_ALIGN_START);
-    fbox_set_gap(&item_content_fbox, 5);
+    fbox_set_direction(&item_content_fbox, fbox_DIRECTION_ROW);
+    fbox_set_main_align(&item_content_fbox, fbox_ALIGN_SPACE_BETWEEN);
     fbox_set_padding(&item_content_fbox, 10);
     fbox_set_expected_items(&item_content_fbox, 2);
+    fbox_set_size_mode(&item_content_fbox, fbox_SIZE_STRETCH);
 
-    Rectangle titleRect = fbox_next(&item_content_fbox, (Vector2){0, scaling_apply_y(20)});
-    DrawText(item->title,
-             titleRect.x,
-             titleRect.y,
-             scaling_apply_y(20),
-             BLACK);
+    float total_width = itemRect.width - (2 * scaling_apply_x(10));
+    float progress_section_width = total_width * 0.3f;
+    float info_section_width = total_width * 0.7f;
 
-    Rectangle timeRect = fbox_next(&item_content_fbox, (Vector2){0, scaling_apply_y(20)});
-    char *timeText = format_duration_12hr(item->start, item->end);
+    { // Title and time range
+      Rectangle item_info_rect = fbox_next(&item_content_fbox,
+                                           (Vector2){info_section_width, itemRect.height});
+      fbox_context_t item_info = fbox_create_nested(&item_content_fbox, item_info_rect);
+      fbox_set_direction(&item_info, fbox_DIRECTION_COLUMN);
+      fbox_set_gap(&item_info, 5);
+      fbox_set_expected_items(&item_info, 2);
 
-    DrawText(timeText,
-             timeRect.x,
-             timeRect.y,
-             scaling_apply_y(20),
-             BLACK);
+      Rectangle titleRect = fbox_next(&item_info, (Vector2){0, scaling_apply_y(20)});
+      DrawText(item->title,
+               titleRect.x,
+               titleRect.y,
+               scaling_apply_y(20),
+               BLACK);
 
-    item = get_next_item(iterator);
+      Rectangle timeRect = fbox_next(&item_info, (Vector2){0, scaling_apply_y(20)});
+      char *timeText = format_duration_12hr(item->start, item->end);
+
+      DrawText(timeText,
+               timeRect.x,
+               timeRect.y,
+               scaling_apply_y(20),
+               BLACK);
+
+      item = get_next_item(iterator);
+      fbox_destroy(&item_info);
+    }
+
+    { // Percentage progress and current marker
+      Rectangle item_progress_rect = fbox_next(&item_content_fbox,
+                                               (Vector2){progress_section_width, itemRect.height});
+      fbox_context_t item_progress = fbox_create_nested(&item_content_fbox, item_progress_rect);
+      fbox_set_direction(&item_progress, fbox_DIRECTION_COLUMN);
+      fbox_set_main_align(&item_progress, fbox_ALIGN_START);
+      fbox_set_cross_align(&item_progress, fbox_ALIGN_END);
+      fbox_set_expected_items(&item_progress, 2);
+
+      char *percentage_text = format_percentage(completion);
+      int percentage_width = MeasureText(percentage_text, scaling_apply_y(13));
+      Rectangle progressRect = fbox_next(&item_progress,
+                                         (Vector2){percentage_width, scaling_apply_y(20)});
+
+      DrawText(percentage_text, progressRect.x, progressRect.y,
+               scaling_apply_y(13), BLACK);
+
+      if (is_current)
+      {
+        int markerWidth = MeasureText("Current", scaling_apply_y(13));
+        Rectangle markerRect = fbox_next(&item_progress,
+                                         (Vector2){markerWidth + 10, scaling_apply_y(20)});
+        float textY = markerRect.y + (scaling_apply_y(20) - scaling_apply_y(13)) / 2;
+        float textX = markerRect.x + (markerWidth + 10 - markerWidth) / 2;
+        DrawText("Current", textX, textY, scaling_apply_y(13), BLACK);
+        DrawRectangleRoundedLinesEx((Rectangle){markerRect.x, markerRect.y, markerWidth + 10, scaling_apply_y(20)}, 0.1f, 8, 3, (Color){PURPLE.r, PURPLE.g, PURPLE.b, 200});
+        DrawRectangleRounded((Rectangle){markerRect.x, markerRect.y, markerWidth + 10, scaling_apply_y(20)}, 0.1f, 8, (Color){PURPLE.r, PURPLE.g, PURPLE.b, 100});
+      }
+
+      fbox_destroy(&item_progress);
+    }
     fbox_destroy(&item_content_fbox);
   }
 

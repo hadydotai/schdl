@@ -125,6 +125,12 @@ Rectangle fbox_next(fbox_context_t *ctx, Vector2 size)
     }
   }
 
+  // Handle the case where the size is 0
+  if (final_size.x == 0)
+    final_size.x = 1;
+  if (final_size.y == 0)
+    final_size.y = 1;
+
   ctx->item_sizes[ctx->item_count] = final_size;
 
   float x = ctx->bounds.x;
