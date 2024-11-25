@@ -46,6 +46,7 @@ typedef struct fbox_context
   float content_width;        // Total width of content
   fbox_size_mode_t size_mode; // How items should be sized
   scrollable_t *scrollable;   // Add this field
+  float *flex_weights;        // Add this field
 } fbox_context_t;
 
 // Creation and destruction
@@ -63,6 +64,7 @@ void fbox_set_padding_y(fbox_context_t *ctx, float padding);
 void fbox_set_padding_x(fbox_context_t *ctx, float padding);
 void fbox_set_expected_items(fbox_context_t *ctx, int count);
 void fbox_set_size_mode(fbox_context_t *ctx, fbox_size_mode_t mode);
+void fbox_set_flex_weights(fbox_context_t *ctx, float weights[]);
 
 // Layout information
 float fbox_get_content_height(fbox_context_t *ctx);

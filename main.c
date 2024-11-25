@@ -139,14 +139,10 @@ void draw_schedule(schedule_t *schedule, scrollable_t *scrollable)
     fbox_set_padding(&item_content_fbox, 10);
     fbox_set_expected_items(&item_content_fbox, 2);
     fbox_set_size_mode(&item_content_fbox, fbox_SIZE_STRETCH);
-
-    float total_width = itemRect.width - (2 * scaling_apply_x(10));
-    float progress_section_width = total_width * 0.3f;
-    float info_section_width = total_width * 0.7f;
+    fbox_set_flex_weights(&item_content_fbox, (float[]){0.7f, 0.3f});
 
     { // Title and time range
-      Rectangle item_info_rect = fbox_next(&item_content_fbox,
-                                           (Vector2){info_section_width, itemRect.height});
+      Rectangle item_info_rect = fbox_next(&item_content_fbox, (Vector2){0, itemRect.height});
       fbox_context_t item_info = fbox_create_nested(&item_content_fbox, item_info_rect);
       fbox_set_direction(&item_info, fbox_DIRECTION_COLUMN);
       fbox_set_gap(&item_info, 5);
@@ -173,8 +169,7 @@ void draw_schedule(schedule_t *schedule, scrollable_t *scrollable)
     }
 
     { // Percentage progress and current marker
-      Rectangle item_progress_rect = fbox_next(&item_content_fbox,
-                                               (Vector2){progress_section_width, itemRect.height});
+      Rectangle item_progress_rect = fbox_next(&item_content_fbox, (Vector2){0, itemRect.height});
       fbox_context_t item_progress = fbox_create_nested(&item_content_fbox, item_progress_rect);
       fbox_set_direction(&item_progress, fbox_DIRECTION_COLUMN);
       fbox_set_main_align(&item_progress, fbox_ALIGN_START);

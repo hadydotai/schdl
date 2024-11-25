@@ -43,6 +43,8 @@ void fbox_destroy(fbox_context_t *ctx)
     ctx->scrollable->last_y_pos = fmaxf(ctx->scrollable->last_y_pos, total_height);
   }
   free(ctx->item_sizes);
+  free(ctx->flex_weights);
+  ctx->flex_weights = NULL;
 }
 
 //------------------------------------------------------------------------------
@@ -95,6 +97,15 @@ void fbox_set_size_mode(fbox_context_t *ctx, fbox_size_mode_t mode)
   ctx->size_mode = mode;
 }
 
+void fbox_set_flex_weights(fbox_context_t *ctx, float weights[])
+{
+  ctx->flex_weights = malloc(sizeof(float) * ctx->expected_items);
+  for (int i = 0; i < ctx->expected_items; i++)
+  {
+    ctx->flex_weights[i] = weights[i];
+  }
+}
+
 //------------------------------------------------------------------------------
 // Layout functions
 //------------------------------------------------------------------------------
@@ -115,8 +126,10 @@ Rectangle fbox_next(fbox_context_t *ctx, Vector2 size)
   Vector2 final_size = size;
   if (ctx->size_mode == fbox_SIZE_STRETCH)
   {
-    if (ctx->direction == fbox_DIRECTION_ROW)
+    if (ctx->direction == fbox_DIRECTION_ROW && ctx->flex_weights != NULL)
     {
+      float available_width = ctx->bounds.width - (2 * ctx->padding_x);
+      final_size.x = available_width * ctx->flex_weights[ctx->item_count];
       final_size.y = ctx->bounds.height - (2 * ctx->padding_y);
     }
     else
