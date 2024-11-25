@@ -23,9 +23,6 @@ install-deps:
 		echo "For Arch Linux: sudo pacman -S base-devel cmake glfw"; \
 	fi
 
-layout.o: layout.c layout.h
-	gcc -c layout.c $(CFLAGS) $(RAYLIB_INCLUDE)
-
 schdl: $(SRCS)
 	gcc -o schdl $(SRCS) $(CFLAGS) $(RAYLIB_STATIC_FLAGS) $(RAYLIB_INCLUDE)
 

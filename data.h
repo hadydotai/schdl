@@ -19,7 +19,6 @@ typedef struct schedule_item
   char title[100];
   time_t start;
   time_t end;
-  bool is_current;
   schedule_item_type_t type;
 } schedule_item_t;
 

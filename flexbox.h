@@ -72,6 +72,5 @@ float fbox_get_content_width(fbox_context_t *ctx);
 
 // Layout functions
 Rectangle fbox_next(fbox_context_t *ctx, Vector2 size);
-Vector2 fbox_next_position(fbox_context_t *ctx);
 
 #endif // FLEXBOX_H

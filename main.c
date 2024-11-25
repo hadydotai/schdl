@@ -33,7 +33,7 @@ float get_item_completion(schedule_item_t *item)
   return (elapsed / duration) * 100.0f;
 }
 
-char *format_percentage(float percentage)
+static char *format_percentage(float percentage)
 {
   char *buffer = malloc(10);
   sprintf(buffer, "%d%%", (int)percentage);
