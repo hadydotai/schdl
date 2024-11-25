@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include "scrollable.h"
 #include "flexbox.h"
+#include "scaling.h"
 
 //------------------------------------------------------------------------------
 // Creation and destruction
@@ -15,6 +16,8 @@ fbox_context_t fbox_create(Rectangle bounds, fbox_direction_t direction, scrolla
       .cross_align = fbox_ALIGN_START,
       .gap = 0,
       .padding = 0,
+      .base_gap = (Vector2){0, 0},
+      .base_padding = (Vector2){0, 0},
       .expected_items = 1,
       .content_height = 0,
       .content_width = 0,
@@ -63,12 +66,14 @@ void fbox_set_cross_align(fbox_context_t *ctx, fbox_align_t align)
 
 void fbox_set_gap(fbox_context_t *ctx, float gap)
 {
-  ctx->gap = gap;
+  ctx->base_gap = (Vector2){gap, gap};
+  ctx->gap = scaling_apply_y(gap);
 }
 
 void fbox_set_padding(fbox_context_t *ctx, float padding)
 {
-  ctx->padding = padding;
+  ctx->base_padding = (Vector2){padding, padding};
+  ctx->padding = scaling_apply_x(padding);
 }
 
 void fbox_set_expected_items(fbox_context_t *ctx, int count)
@@ -219,4 +224,14 @@ float fbox_get_content_height(fbox_context_t *ctx)
 float fbox_get_content_width(fbox_context_t *ctx)
 {
   return ctx->content_width;
+}
+
+//------------------------------------------------------------------------------
+// Scaling update handler
+//------------------------------------------------------------------------------
+
+static void fbox_update_scaling(fbox_context_t *ctx, float scale_x, float scale_y)
+{
+  ctx->gap = ctx->base_gap.y * scale_y;
+  ctx->padding = ctx->base_padding.x * scale_x;
 }

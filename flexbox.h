@@ -45,6 +45,8 @@ typedef struct fbox_context
   float content_width;        // Total width of content
   fbox_size_mode_t size_mode; // How items should be sized
   scrollable_t *scrollable;   // Add this field
+  Vector2 base_gap;           // Unscaled gap
+  Vector2 base_padding;       // Unscaled padding
 } fbox_context_t;
 
 // Creation and destruction

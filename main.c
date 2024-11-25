@@ -3,6 +3,7 @@
 #include "data.h"
 #include "scrollable.h"
 #include "flexbox.h"
+#include "scaling.h"
 
 #ifdef _WIN32
 #define _CRT_SECURE_NO_WARNINGS
@@ -10,9 +11,6 @@
 
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
-
-static float scale_x = 1.0f;
-static float scale_y = 1.0f;
 
 void debug_print_schedule(schedule_t *schedule)
 {
@@ -53,8 +51,8 @@ void draw_schedule(schedule_t *schedule, scrollable_t *scrollable)
       scrollable);
   fbox_set_main_align(&fb, fbox_ALIGN_START);
   fbox_set_cross_align(&fb, fbox_ALIGN_START);
-  fbox_set_gap(&fb, 14 * scale_y);
-  fbox_set_padding(&fb, 30 * scale_x);
+  fbox_set_gap(&fb, 14);
+  fbox_set_padding(&fb, 30);
   fbox_set_expected_items(&fb, schedule->count);
   fbox_set_size_mode(&fb, fbox_SIZE_STRETCH);
 
@@ -62,34 +60,34 @@ void draw_schedule(schedule_t *schedule, scrollable_t *scrollable)
   {
     Vector2 size = (Vector2){
         0,
-        100 * scale_y};
+        scaling_apply_y(100)};
 
     Rectangle itemRect = fbox_next(&fb, size);
     DrawRectangleRec(itemRect, LIGHTGRAY);
-    DrawRectangleLinesEx(itemRect, 2 * scale_x, DARKGRAY);
+    DrawRectangleLinesEx(itemRect, 2 * scaling_get_x(), DARKGRAY);
 
     fbox_context_t item_fb = fbox_create_nested(&fb, itemRect);
     fbox_set_direction(&item_fb, fbox_DIRECTION_COLUMN);
     fbox_set_main_align(&item_fb, fbox_ALIGN_START);
     fbox_set_cross_align(&item_fb, fbox_ALIGN_START);
-    fbox_set_gap(&item_fb, 5 * scale_y);
-    fbox_set_padding(&item_fb, 10 * scale_x);
+    fbox_set_gap(&item_fb, 5);
+    fbox_set_padding(&item_fb, 10);
     fbox_set_expected_items(&item_fb, 2);
 
-    Rectangle titleRect = fbox_next(&item_fb, (Vector2){0, 20 * scale_y});
+    Rectangle titleRect = fbox_next(&item_fb, (Vector2){0, scaling_apply_y(20)});
     DrawText(item->title,
              titleRect.x,
              titleRect.y,
-             20 * scale_y,
+             scaling_apply_y(20),
              BLACK);
 
-    Rectangle timeRect = fbox_next(&item_fb, (Vector2){0, 20 * scale_y});
+    Rectangle timeRect = fbox_next(&item_fb, (Vector2){0, scaling_apply_y(20)});
     char *timeText = format_duration(item->start, item->end);
 
     DrawText(timeText,
              timeRect.x,
              timeRect.y,
-             20 * scale_y,
+             scaling_apply_y(20),
              BLACK);
 
     item = get_next_item(iterator);
@@ -100,18 +98,14 @@ void draw_schedule(schedule_t *schedule, scrollable_t *scrollable)
   fbox_destroy(&fb);
 }
 
-void update_scaling(void)
-{
-  scale_x = (float)GetScreenWidth() / WINDOW_WIDTH;
-  scale_y = (float)GetScreenHeight() / WINDOW_HEIGHT;
-}
-
 int main()
 {
   SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_WINDOW_RESIZABLE);
   SetTraceLogLevel(LOG_WARNING);
   InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Daily Schedule");
   SetTargetFPS(60);
+
+  scaling_init(WINDOW_WIDTH, WINDOW_HEIGHT);
 
   schedule_t *schedule = create_schedule();
   add_item(schedule, (schedule_item_t){.title = "Breakfast", .start = make_time(8, 0), .end = make_time(9, 0)});
@@ -125,19 +119,20 @@ int main()
 
   scrollable_t *scrollable = create_scrollable((Rectangle){
       0, 0,
-      WINDOW_WIDTH * scale_x,
-      WINDOW_HEIGHT * scale_y});
+      WINDOW_WIDTH,
+      WINDOW_HEIGHT});
 
   while (!WindowShouldClose())
   {
     BeginDrawing();
     ClearBackground(RAYWHITE);
 
-    update_scaling();
+    scaling_update();
+
     scrollable->bounds = (Rectangle){
         0, 0,
-        WINDOW_WIDTH * scale_x,
-        WINDOW_HEIGHT * scale_y};
+        scaling_apply_x(WINDOW_WIDTH),
+        scaling_apply_y(WINDOW_HEIGHT)};
 
     begin_scrollable(scrollable);
     draw_schedule(schedule, scrollable);
@@ -146,6 +141,7 @@ int main()
     EndDrawing();
   }
 
+  scaling_cleanup();
   CloseWindow();
   destroy_schedule(schedule);
   destroy_scrollable(scrollable);
