@@ -10,6 +10,8 @@
 #include "scaling.h"
 #include "parser.h"
 
+#define VERSION "0.8.0"
+
 #ifdef _WIN32
 #define _CRT_SECURE_NO_WARNINGS
 #endif
@@ -216,7 +218,7 @@ int main(int argc, char **argv)
 {
   if (argc != 2)
   {
-    printf("Usage: %s <schedule_folder>\n", argv[0]);
+    printf("Scheduler %s\nUsage: %s <schedule_folder>\n", VERSION, argv[0]);
     return 1;
   }
 
@@ -266,7 +268,6 @@ int main(int argc, char **argv)
     EndDrawing();
   }
 
-  // Cleanup in correct order
   destroy_schedule(schedule);
   destroy_scrollable(scrollable);
   scaling_cleanup();

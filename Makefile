@@ -2,13 +2,26 @@ RAYLIB_PATH=./deps/raylib
 RAYLIB_INCLUDE=-I$(RAYLIB_PATH)/src
 
 CFLAGS=-Wall -g
-RAYLIB_STATIC_FLAGS=-lraylib -lglfw -lGL -lm -lpthread -ldl -L./deps/raylib/src
+RAYLIB_STATIC_FLAGS=-L$(RAYLIB_PATH)/src -lraylib -lglfw -lGL -lm -lpthread -ldl
 
 SRCS=main.c data.c scrollable.c flexbox.c scaling.c parser.c
 
 default: schdl
 
-# Add new install-deps target
+release:
+	@VERSION=$$(grep '#define VERSION' main.c | cut -d '"' -f2); \
+	RELEASE_DIR="release-$$VERSION"; \
+	echo "Creating release $$VERSION..."; \
+	mkdir -p "$$RELEASE_DIR/deps"; \
+	cp CHANGELOG data.c data.h flexbox.c flexbox.h main.c Makefile \
+		parser.c parser.h scaling.c scaling.h scrollable.c scrollable.h \
+		tuesday.schedule README.md LICENSE screenshot.png "$$RELEASE_DIR/"; \
+	cp deps/DEPS "$$RELEASE_DIR/deps/"; \
+	chmod +x "$$RELEASE_DIR/deps/DEPS"; \
+	tar -cf "$$RELEASE_DIR.tar" "$$RELEASE_DIR"; \
+	rm -rf "$$RELEASE_DIR"; \
+	echo "Created $$RELEASE_DIR.tar"
+
 install-deps:
 	@echo "Installing dependencies for Debian/Ubuntu-based systems..."
 	@if command -v apt-get >/dev/null; then \
@@ -22,7 +35,7 @@ install-deps:
 		echo "For Fedora/RHEL: sudo dnf install gcc-c++ cmake glfw-devel valgrind"; \
 		echo "For Arch Linux: sudo pacman -S base-devel cmake glfw valgrind"; \
 	fi
-	
+
 install: schdl
 	@echo "Installing schdl to /usr/local/bin..."
 	@sudo cp schdl /usr/local/bin/

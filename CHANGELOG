@@ -1,0 +1,55 @@
+# Changelog
+
+## 0.8.0
+- Fix memory leaks
+- Valgrind make target
+- Parse and load schedule files
+
+## 0.7.1
+- Implement cross-axis and main-axis alignment
+- Implement flex-grow and weight based stretching
+
+## 0.7.0
+- Cleaner scrollable content abstraction
+- Robust scaling and resizing support
+- Remove time of day horizontal indicator
+- Remove custom font
+- Dead code
+
+## 0.6.3
+- Rewrite flexbox layout
+- Time of day horizontal indicator opacity improvements
+
+## 0.6.2
+- Fix window size now growing automatically using tiling managers
+
+## 0.6.1
+- Custom font scaling tweaks
+
+## 0.6.0
+- Custom font
+- Time of day horizontal indicator
+
+## 0.5.0
+- Support space between items
+- Scaling and resizing support
+
+## 0.4.0
+- Initial flexbox layout implementation
+- Support align items center, justify content center, align items end and start
+
+## 0.3.1
+- Fix scrolling beyond limits
+- Fix time not being displayed correctly
+- Windows support (untested)
+
+## 0.3.0
+- Scrollable list using mouse wheel
+- Natural scrolling
+
+## 0.2.0
+- Scrollable list of events
+
+## 0.1.0
+- Open window
+- List all events
