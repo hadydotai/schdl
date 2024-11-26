@@ -4,7 +4,7 @@ RAYLIB_INCLUDE=-I$(RAYLIB_PATH)/src
 CFLAGS=-Wall -g
 RAYLIB_STATIC_FLAGS=-lraylib -lglfw -lGL -lm -lpthread -ldl -L./deps/raylib/src
 
-SRCS=main.c data.c scrollable.c flexbox.c scaling.c
+SRCS=main.c data.c scrollable.c flexbox.c scaling.c parser.c
 
 default: schdl
 
@@ -22,6 +22,12 @@ install-deps:
 		echo "For Fedora/RHEL: sudo dnf install gcc-c++ cmake glfw-devel valgrind"; \
 		echo "For Arch Linux: sudo pacman -S base-devel cmake glfw valgrind"; \
 	fi
+	
+install: schdl
+	@echo "Installing schdl to /usr/local/bin..."
+	@sudo cp schdl /usr/local/bin/
+	@echo "Installation complete. You can now run 'schdl' from anywhere."
+
 
 schdl: $(SRCS)
 	gcc -o schdl $(SRCS) $(CFLAGS) $(RAYLIB_STATIC_FLAGS) $(RAYLIB_INCLUDE)

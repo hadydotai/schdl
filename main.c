@@ -1,12 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
+#include <string.h>
 
-// raylib headers
 #include "raylib.h"
 #include "data.h"
 #include "scrollable.h"
 #include "flexbox.h"
 #include "scaling.h"
+#include "parser.h"
 
 #ifdef _WIN32
 #define _CRT_SECURE_NO_WARNINGS
@@ -182,22 +184,65 @@ void draw_schedule(schedule_t *schedule, scrollable_t *scrollable)
   fbox_destroy(&items_fbox);
 }
 
-int main()
+static char *find_today_schedule_file(char *schedule_folder)
 {
+  time_t now = time(NULL);
+  struct tm tm;
+  localtime_r(&now, &tm);
+
+  char *days[] = {"sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"};
+  char *day = days[tm.tm_wday];
+
+  // full path: folder + "/" + day + ".schedule" + null terminator
+  char *filepath = malloc(strlen(schedule_folder) + 1 + strlen(day) + 9 + 1);
+  if (!filepath)
+  {
+    return NULL;
+  }
+
+  sprintf(filepath, "%s/%s.schedule", schedule_folder, day);
+  FILE *f = fopen(filepath, "r");
+  if (!f)
+  {
+    free(filepath);
+    return NULL;
+  }
+  fclose(f);
+
+  return filepath;
+}
+
+int main(int argc, char **argv)
+{
+  if (argc != 2)
+  {
+    printf("Usage: %s <schedule_folder>\n", argv[0]);
+    return 1;
+  }
+
+  char *schedule_folder = argv[1];
+  char *today_schedule_file = find_today_schedule_file(schedule_folder);
+  if (!today_schedule_file)
+  {
+    printf("No schedule file found for today\n");
+    return 1;
+  }
+
+  parse_error_t error;
+  schedule_t *schedule = parse_schedule_file(today_schedule_file, &error);
+  if (!schedule)
+  {
+    printf("Failed to parse schedule file: %s\n", parse_error_to_string(error));
+    return 1;
+  }
+
+  SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_WINDOW_RESIZABLE);
   SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_WINDOW_RESIZABLE);
   SetTraceLogLevel(LOG_WARNING);
   InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Daily Schedule");
   SetTargetFPS(60);
 
   scaling_init(WINDOW_WIDTH, WINDOW_HEIGHT);
-
-  schedule_t *schedule = create_schedule();
-  add_item(schedule, (schedule_item_t){.title = "Breakfast", .start = make_time(8, 0), .end = make_time(9, 0), .type = SCHEDULE_ITEM_TYPE_BREAK});
-  add_item(schedule, (schedule_item_t){.title = "SR Work", .start = make_time(9, 0), .end = make_time(12, 0), .type = SCHEDULE_ITEM_TYPE_EVENT});
-  add_item(schedule, (schedule_item_t){.title = "Lunch", .start = make_time(12, 0), .end = make_time(13, 0), .type = SCHEDULE_ITEM_TYPE_BREAK});
-  add_item(schedule, (schedule_item_t){.title = "Personal Work", .start = make_time(13, 0), .end = make_time(18, 0), .type = SCHEDULE_ITEM_TYPE_EVENT});
-  add_item(schedule, (schedule_item_t){.title = "Dinner", .start = make_time(18, 0), .end = make_time(19, 0), .type = SCHEDULE_ITEM_TYPE_BREAK});
-  add_item(schedule, (schedule_item_t){.title = "Supper", .start = make_time(19, 0), .end = make_time(20, 0), .type = SCHEDULE_ITEM_TYPE_BREAK});
 
   scrollable_t *scrollable = create_scrollable((Rectangle){
       0, scaling_apply_y(50),
