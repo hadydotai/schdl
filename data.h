@@ -57,4 +57,7 @@ char *format_duration(time_t start, time_t end);
 char *format_duration_12hr(time_t start, time_t end);
 char *format_date(time_t date);
 
+void free_formatted_time(char *time_str);
+void free_formatted_duration(char *duration_str);
+
 #endif // DATA_H

@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
+
+// raylib headers
 #include "raylib.h"
 #include "data.h"
 #include "scrollable.h"
@@ -59,6 +61,7 @@ void draw_header()
   int timeWidth = MeasureText(timeText, scaling_apply_y(20));
   Rectangle timeRect = fbox_next(&header_fbox, (Vector2){timeWidth, scaling_apply_y(20)});
   DrawText(timeText, timeRect.x, timeRect.y, scaling_apply_y(20), BLACK);
+  free_formatted_time(timeText);
 
   DrawLine(0,
            header_fbox.bounds.y + header_fbox.bounds.height,
@@ -128,13 +131,14 @@ void draw_schedule(schedule_t *schedule, scrollable_t *scrollable)
                BLACK);
 
       Rectangle timeRect = fbox_next(&item_info, (Vector2){0, scaling_apply_y(20)});
-      char *timeText = format_duration_12hr(item->start, item->end);
+      char *duration_text = format_duration_12hr(item->start, item->end);
 
-      DrawText(timeText,
+      DrawText(duration_text,
                timeRect.x,
                timeRect.y,
                scaling_apply_y(20),
                BLACK);
+      free_formatted_duration(duration_text);
 
       item = get_next_item(iterator);
       fbox_destroy(&item_info);
@@ -155,6 +159,7 @@ void draw_schedule(schedule_t *schedule, scrollable_t *scrollable)
 
       DrawText(percentage_text, progressRect.x, progressRect.y,
                scaling_apply_y(13), BLACK);
+      free(percentage_text);
 
       if (is_current)
       {
@@ -215,9 +220,10 @@ int main()
     EndDrawing();
   }
 
-  scaling_cleanup();
+  // Cleanup in correct order
   destroy_schedule(schedule);
   destroy_scrollable(scrollable);
+  scaling_cleanup();
   CloseWindow();
 
   return 0;

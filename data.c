@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <stdbool.h>
+#include <string.h>
 #include "data.h"
 
 #ifdef _WIN32
@@ -146,8 +147,12 @@ char *format_duration(time_t start, time_t end)
 
 char *format_duration_12hr(time_t start, time_t end)
 {
-  char *duration_str = (char *)malloc(100);
-  sprintf(duration_str, "%s - %s", format_time_12hr(start), format_time_12hr(end));
+  char *start_str = format_time_12hr(start);
+  char *end_str = format_time_12hr(end);
+  char *duration_str = (char *)malloc(strlen(start_str) + strlen(end_str) + 4);
+  sprintf(duration_str, "%s - %s", start_str, end_str);
+  free_formatted_time(start_str);
+  free_formatted_time(end_str);
   return duration_str;
 }
 
@@ -167,3 +172,19 @@ static inline struct tm *localtime_r(const time_t *timep, struct tm *result)
   return result;
 }
 #endif
+
+void free_formatted_time(char *time_str)
+{
+  if (time_str != NULL)
+  {
+    free(time_str);
+  }
+}
+
+void free_formatted_duration(char *duration_str)
+{
+  if (duration_str != NULL)
+  {
+    free(duration_str);
+  }
+}

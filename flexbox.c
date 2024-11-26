@@ -22,7 +22,13 @@ fbox_context_t fbox_create(Rectangle bounds, fbox_direction_t direction, scrolla
       .content_height = 0,
       .content_width = 0,
       .size_mode = fbox_SIZE_FIXED,
-      .scrollable = scrollable};
+      .scrollable = scrollable,
+      .item_sizes = NULL,
+      .item_positions = NULL,
+      .item_count = 0,
+      .max_items = 0,
+      .current_pos = 0,
+      .flex_weights = NULL};
   return ctx;
 }
 
@@ -37,14 +43,46 @@ fbox_context_t fbox_create_nested(fbox_context_t *parent, Rectangle bounds)
 
 void fbox_destroy(fbox_context_t *ctx)
 {
+  if (ctx == NULL)
+    return;
+
+  // Update scrollable content height if needed
   if (ctx->scrollable != NULL)
   {
     float total_height = ctx->content_height;
     ctx->scrollable->last_y_pos = fmaxf(ctx->scrollable->last_y_pos, total_height);
   }
-  free(ctx->item_sizes);
-  free(ctx->flex_weights);
-  ctx->flex_weights = NULL;
+
+  // Free item positions array and each position
+  if (ctx->item_positions != NULL)
+  {
+    for (int i = 0; i < ctx->max_items; i++)
+    {
+      if (ctx->item_positions[i] != NULL)
+      {
+        free(ctx->item_positions[i]);
+      }
+    }
+    free(ctx->item_positions);
+    ctx->item_positions = NULL;
+  }
+
+  // Free other allocated arrays
+  if (ctx->item_sizes != NULL)
+  {
+    free(ctx->item_sizes);
+    ctx->item_sizes = NULL;
+  }
+
+  if (ctx->flex_weights != NULL)
+  {
+    free(ctx->flex_weights);
+    ctx->flex_weights = NULL;
+  }
+
+  // Reset counters
+  ctx->item_count = 0;
+  ctx->max_items = 0;
 }
 
 //------------------------------------------------------------------------------
@@ -118,6 +156,10 @@ Rectangle fbox_next(fbox_context_t *ctx, Vector2 size)
     ctx->max_items = ctx->expected_items;
     ctx->item_sizes = malloc(sizeof(Vector2) * ctx->max_items);
     ctx->item_positions = malloc(sizeof(Rectangle *) * ctx->max_items);
+    for (int i = 0; i < ctx->max_items; i++)
+    {
+      ctx->item_positions[i] = NULL; // Initialize to NULL
+    }
     ctx->item_count = 0;
     ctx->current_pos = ctx->padding_x;
   }
@@ -296,11 +338,18 @@ Rectangle fbox_next(fbox_context_t *ctx, Vector2 size)
   item_position->height = final_size.y;
   ctx->item_positions[ctx->item_count] = item_position;
 
+  Rectangle result = *item_position; // Copy the rectangle
+
   ctx->item_count++;
 
   // Reset tracking after processing all items
   if (ctx->item_count == ctx->expected_items)
   {
+    // Free all allocated memory
+    for (int i = 0; i < ctx->max_items; i++)
+    {
+      free(ctx->item_positions[i]);
+    }
     free(ctx->item_sizes);
     free(ctx->item_positions);
     ctx->item_sizes = NULL;
@@ -309,7 +358,7 @@ Rectangle fbox_next(fbox_context_t *ctx, Vector2 size)
     ctx->current_pos = ctx->padding_x;
   }
 
-  return *item_position;
+  return result;
 }
 
 //------------------------------------------------------------------------------
