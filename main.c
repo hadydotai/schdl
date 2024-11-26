@@ -233,6 +233,7 @@ int main(int argc, char **argv)
   if (!schedule)
   {
     printf("Failed to parse schedule file: %s\n", parse_error_to_string(error));
+    free(today_schedule_file);
     return 1;
   }
 
@@ -270,6 +271,7 @@ int main(int argc, char **argv)
   destroy_scrollable(scrollable);
   scaling_cleanup();
   CloseWindow();
+  free(today_schedule_file);
 
   return 0;
 }
