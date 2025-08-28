@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Bootstrap dependencies for this project.
+# - Ensures raylib exists under deps/raylib
+# - Builds the static library at deps/raylib/src/libraylib.a
+#
+# Usage:
+#   ./deps/DEPS
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+RAYLIB_DIR="$ROOT_DIR/deps/raylib"
+
+echo "[DEPS] Ensuring raylib is present at: $RAYLIB_DIR"
+
+if [ -d "$RAYLIB_DIR/.git" ]; then
+  echo "[DEPS] raylib appears to be a git repo; updating..."
+  git -C "$RAYLIB_DIR" fetch --tags --quiet || true
+  git -C "$RAYLIB_DIR" submodule update --init --recursive || true
+elif [ -d "$RAYLIB_DIR" ]; then
+  echo "[DEPS] raylib directory exists but is not a git repository."
+  echo "[DEPS] Attempting to initialize as a submodule (if applicable)..."
+  git submodule update --init --recursive || true
+else
+  echo "[DEPS] Cloning raylib..."
+  git clone --depth=1 https://github.com/raysan5/raylib.git "$RAYLIB_DIR"
+  git -C "$RAYLIB_DIR" submodule update --init --recursive || true
+fi
+
+echo "[DEPS] Building raylib static library (libraylib.a)..."
+make -C "$RAYLIB_DIR/src" clean >/dev/null 2>&1 || true
+make -C "$RAYLIB_DIR/src" PLATFORM=PLATFORM_DESKTOP RAYLIB_BUILD_MODE=RELEASE
+
+if [ -f "$RAYLIB_DIR/src/libraylib.a" ]; then
+  echo "[DEPS] Success: $RAYLIB_DIR/src/libraylib.a"
+else
+  echo "[DEPS] ERROR: libraylib.a not found after build" >&2
+  exit 1
+fi
+
+echo "[DEPS] Done."

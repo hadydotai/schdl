@@ -3,6 +3,7 @@ RAYLIB_INCLUDE=-I$(RAYLIB_PATH)/src
 
 CFLAGS=-Wall -g
 RAYLIB_STATIC_FLAGS=-L$(RAYLIB_PATH)/src -lraylib -lglfw -lGL -lm -lpthread -ldl
+RAYLIB_LIB=$(RAYLIB_PATH)/src/libraylib.a
 
 SRCS=main.c data.c scrollable.c flexbox.c scaling.c parser.c
 
@@ -42,10 +43,13 @@ install: schdl
 	@echo "Installation complete. You can now run 'schdl' from anywhere."
 
 
-schdl: $(SRCS)
+schdl: $(RAYLIB_LIB) $(SRCS)
 	gcc -o schdl $(SRCS) $(CFLAGS) $(RAYLIB_STATIC_FLAGS) $(RAYLIB_INCLUDE)
 
-debug:
+$(RAYLIB_LIB):
+	$(MAKE) -C $(RAYLIB_PATH)/src PLATFORM=PLATFORM_DESKTOP RAYLIB_BUILD_MODE=RELEASE
+
+debug: $(RAYLIB_LIB)
 	gcc -o schdl $(SRCS) $(CFLAGS) $(RAYLIB_STATIC_FLAGS) $(RAYLIB_INCLUDE) -g
 
 debug-run: debug
